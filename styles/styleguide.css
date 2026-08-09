@@ -15,7 +15,7 @@
     text-decoration: underline;
   }
 
-  atom-panel.modal::after {
+  lumine-panel.modal::after {
     /* Keep the modal backdrop inside the padded styleguide example. */
     position: absolute;
     left: calc(-1 * var(--ui-padding));

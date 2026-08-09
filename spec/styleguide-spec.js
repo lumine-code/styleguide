@@ -6,13 +6,13 @@ function wait(ms) {
 
 describe("Style Guide", () => {
   beforeEach(async () => {
-    await atom.packages.activatePackage("styleguide");
+    await lumine.packages.activatePackage("styleguide");
   });
 
   describe("the Styleguide view", () => {
     let styleGuideView;
     beforeEach(async () => {
-      styleGuideView = await atom.workspace.open("lumine://styleguide");
+      styleGuideView = await lumine.workspace.open("lumine://styleguide");
     });
 
     it("opens the style guide", () => {
@@ -25,14 +25,14 @@ describe("Style Guide", () => {
       // happens asynchronously after the language package activates, so poll
       // instead of sleeping for a fixed interval.
       await conditionPromise(
-        () => styleGuideView.element.querySelector(".example-html atom-text-editor") != null,
+        () => styleGuideView.element.querySelector(".example-html lumine-text-editor") != null,
         "the HTML example editor to render",
       );
-      const editor = styleGuideView.element.querySelector(".example-html atom-text-editor");
+      const editor = styleGuideView.element.querySelector(".example-html lumine-text-editor");
       const te = editor.getModel();
       expect(te.getGrammar()?.scopeName).toBe("text.plain.null-grammar");
 
-      await atom.packages.activatePackage("language-html");
+      await lumine.packages.activatePackage("language-html");
       await conditionPromise(
         () => te.getGrammar()?.scopeName === "text.html.basic",
         "the HTML grammar to be assigned",

@@ -6,7 +6,7 @@ const CodeBlock = require("./code-block");
 module.exports = class ExampleSelectListView {
   constructor() {
     this.jsExampleCode = dedent`
-    const selectListView = atom.workspace.buildSelectList({
+    const selectListView = lumine.workspace.buildSelectList({
       items: ['one', 'two', 'three'],
       elementForItem: (item) => {
         const li = document.createElement('li')
@@ -25,7 +25,7 @@ module.exports = class ExampleSelectListView {
     // The list is built rather than rendered as an etch component: the editor
     // hands back an instance, and etch needs a constructor in tag position. Its
     // element is adopted into the tree below instead.
-    this.selectListView = atom.workspace.buildSelectList({
+    this.selectListView = lumine.workspace.buildSelectList({
       items: ["one", "two", "three"],
       // This is a static showcase, not a live picker in a fixed modal.
       // Auto-selecting an item would call scrollIntoViewIfNeeded and
@@ -58,7 +58,7 @@ module.exports = class ExampleSelectListView {
     return (
       <div className="example">
         <div className="example-rendered">
-          <atom-panel className="modal" ref="host" />
+          <lumine-panel className="modal" ref="host" />
         </div>
         <div className="example-code show-example-space-pen">
           <CodeBlock

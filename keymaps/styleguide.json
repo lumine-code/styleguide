@@ -2,7 +2,7 @@
   // `cmdorctrl-ctrl-G` collapsed to ctrl-shift-G off macOS and stayed
   // cmd-ctrl-shift-G on it, so one binding meant two chords. The uppercase G
   // was an implicit shift too.
-  "atom-workspace": {
+  "lumine-workspace": {
     "cmdorctrl-ctrl-shift-g": "styleguide:show"
   }
 }

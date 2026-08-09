@@ -1,5 +1,5 @@
 /** @jsx etch.dom */
-const { CompositeDisposable } = require("atom");
+const { CompositeDisposable } = require("lumine");
 const etch = require("@lumine-code/etch");
 const dedent = require("dedent");
 const CodeBlock = require("./code-block");
@@ -23,7 +23,7 @@ module.exports = class StyleguideView {
     // Fill in the resolved value of every theme variable next to its swatch,
     // and keep it current as the active theme changes or sections expand.
     this.disposables = new CompositeDisposable();
-    this.disposables.add(atom.themes.onDidChangeActiveThemes(() => this.updateResolvedValues()));
+    this.disposables.add(lumine.themes.onDidChangeActiveThemes(() => this.updateResolvedValues()));
     this.element.addEventListener("click", (event) => {
       if (event.target.closest(".section-heading")) {
         requestAnimationFrame(() => this.updateResolvedValues());
@@ -361,7 +361,7 @@ module.exports = class StyleguideView {
               A single-theme package instead uses a top-level <code>"theme": "ui"</code> (or{" "}
               <code>"syntax"</code>) and puts its stylesheets in <code>styles/</code>. A syntax
               theme scopes its rules to the editor by naming a file{" "}
-              <code>*.atom-text-editor.css</code>.
+              <code>*.lumine-text-editor.css</code>.
             </p>
             <p>
               Legacy themes that predate the CSS palette still work: define the classic Less{" "}
@@ -686,11 +686,11 @@ module.exports = class StyleguideView {
             {this.renderExampleHTML(dedent`
               <div class='block'>
                 <label>You might want to type something here.</label>
-                <atom-text-editor mini>Something you typed...</atom-text-editor>
+                <lumine-text-editor mini>Something you typed...</lumine-text-editor>
               </div>
               <div class='block'>
                 <label class='icon icon-file-directory'>Another field with an icon</label>
-                <atom-text-editor mini>Something else you typed...</atom-text-editor>
+                <lumine-text-editor mini>Something else you typed...</lumine-text-editor>
               </div>
               <div class='block'>
                 <button class='btn'>Do it</button>
@@ -996,27 +996,27 @@ module.exports = class StyleguideView {
           >
             <p>A container attached to some side of the Lumine UI.</p>
             {this.renderExampleHTML(dedent`
-              <atom-panel>
+              <lumine-panel>
                 Some content
-              </atom-panel>
+              </lumine-panel>
             `)}
 
             <h2>Inset Panel</h2>
             <p>Use inside a panel</p>
             {this.renderExampleHTML(dedent`
-              <atom-panel class='padded'>
+              <lumine-panel class='padded'>
                 <div class="inset-panel padded">Some inset content</div>
-              </atom-panel>
+              </lumine-panel>
             `)}
 
             <h2>With a heading</h2>
             {this.renderExampleHTML(dedent`
-              <atom-panel class='padded'>
+              <lumine-panel class='padded'>
                 <div class="inset-panel">
                   <div class="panel-heading">An inset-panel heading</div>
                   <div class="panel-body padded">Some Content</div>
                 </div>
-              </atom-panel>
+              </lumine-panel>
             `)}
           </StyleguideSection>
 
@@ -1237,7 +1237,7 @@ module.exports = class StyleguideView {
 
             <h2>Basic example with one item selected</h2>
             {this.renderExampleHTML(dedent`
-              <atom-panel class='modal'>
+              <lumine-panel class='modal'>
                 <div class='select-list'>
                   <ol class='list-group'>
                     <li class='selected'>one</li>
@@ -1245,12 +1245,12 @@ module.exports = class StyleguideView {
                     <li>three</li>
                   </ol>
                 </div>
-              </atom-panel>
+              </lumine-panel>
             `)}
 
             <h2>Single line with icons</h2>
             {this.renderExampleHTML(dedent`
-              <atom-panel class='modal'>
+              <lumine-panel class='modal'>
                 <div class='select-list'>
                   <ol class='list-group'>
                     <li class='selected'>
@@ -1269,12 +1269,12 @@ module.exports = class StyleguideView {
                     </li>
                   </ol>
                 </div>
-              </atom-panel>
+              </lumine-panel>
             `)}
 
             <h2>Single line with key-bindings</h2>
             {this.renderExampleHTML(dedent`
-              <atom-panel class='modal'>
+              <lumine-panel class='modal'>
                 <div class='select-list'>
                   <ol class='list-group'>
                     <li class='selected'>
@@ -1303,12 +1303,12 @@ module.exports = class StyleguideView {
                     </li>
                   </ol>
                 </div>
-              </atom-panel>
+              </lumine-panel>
             `)}
 
             <h2>Multiple lines with no icons</h2>
             {this.renderExampleHTML(dedent`
-              <atom-panel class='modal'>
+              <lumine-panel class='modal'>
                 <div class='select-list'>
                   <ol class='list-group'>
                     <li class='two-lines'>
@@ -1322,12 +1322,12 @@ module.exports = class StyleguideView {
                     </li>
                   </ol>
                 </div>
-              </atom-panel>
+              </lumine-panel>
             `)}
 
             <h2>Multiple lines with icons</h2>
             {this.renderExampleHTML(dedent`
-              <atom-panel class='modal'>
+              <lumine-panel class='modal'>
                 <div class='select-list'>
                   <ol class='list-group'>
                     <li class='two-lines'>
@@ -1349,13 +1349,13 @@ module.exports = class StyleguideView {
                     </li>
                   </ol>
                 </div>
-              </atom-panel>
+              </lumine-panel>
             `)}
 
             <h2>Using mark-active class to indicate the active item</h2>
             <p>Use ...</p>
             {this.renderExampleHTML(dedent`
-              <atom-panel class='modal'>
+              <lumine-panel class='modal'>
                 <div class='select-list'>
                   <ol class='list-group mark-active'>
                     <li class='selected'>Selected &mdash; user is arrowing through the list.</li>
@@ -1363,30 +1363,30 @@ module.exports = class StyleguideView {
                     <li class='selected active'>Selected AND Active!</li>
                   </ol>
                 </div>
-              </atom-panel>
+              </lumine-panel>
             `)}
 
             <h2>Error messages</h2>
             {this.renderExampleHTML(dedent`
-              <atom-panel class='modal'>
+              <lumine-panel class='modal'>
                 <div class='select-list'>
-                  <atom-text-editor mini>I searched for this</atom-text-editor>
+                  <lumine-text-editor mini>I searched for this</lumine-text-editor>
                   <div class='error-message'>Nothing has been found!</div>
                 </div>
-              </atom-panel>
+              </lumine-panel>
             `)}
 
             <h2>Loading message</h2>
             {this.renderExampleHTML(dedent`
-              <atom-panel class='modal'>
+              <lumine-panel class='modal'>
                 <div class='select-list'>
-                  <atom-text-editor mini>User input</atom-text-editor>
+                  <lumine-text-editor mini>User input</lumine-text-editor>
                   <div class='loading'>
                     <span class='loading-message'>Chill, bro. Things are loading.</span>
                     <span class='badge'>1234</span>
                   </div>
                 </div>
-              </atom-panel>
+              </lumine-panel>
             `)}
           </StyleguideSection>
 
@@ -1403,7 +1403,7 @@ module.exports = class StyleguideView {
             <h2>Basic example with one item selected</h2>
             {this.renderExampleHTML(dedent`
               <div class='select-list popover-list'>
-                <atom-text-editor mini>'User types here..'</atom-text-editor>
+                <lumine-text-editor mini>'User types here..'</lumine-text-editor>
                 <ol class='list-group'>
                   <li class='selected'>one</li>
                   <li>two</li>
@@ -1420,9 +1420,9 @@ module.exports = class StyleguideView {
           >
             <p>Modals are like dialog boxes.</p>
             {this.renderExampleHTML(dedent`
-              <atom-panel class='modal'>
+              <lumine-panel class='modal'>
                 <div>Some content</div>
-              </atom-panel>
+              </lumine-panel>
             `)}
           </StyleguideSection>
 

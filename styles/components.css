@@ -96,7 +96,7 @@
 
   /* Modals --------------- */
 
-  atom-panel.modal {
+  lumine-panel.modal {
     /* makde them responsive in the styleguide */
     position: relative;
     max-width: 100%;
@@ -112,7 +112,7 @@
 
   .popover-list,
   .select-list {
-    atom-text-editor[mini] {
+    lumine-text-editor[mini] {
       height: 27px;
     }
   }

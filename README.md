@@ -14,7 +14,7 @@ To install `styleguide` search for _styleguide_ in the Install pane of the Lumin
 
 ## Commands
 
-Commands available in `atom-workspace`:
+Commands available in `lumine-workspace`:
 
 - `styleguide:show`: open the styleguide in a new tab.
 
