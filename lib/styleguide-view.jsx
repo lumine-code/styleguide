@@ -104,11 +104,10 @@ module.exports = class StyleguideView {
               name is what the currently active theme resolves it to.
             </p>
             <p>
-              The names mirror the classic Less <code>ui-variables</code> contract 1:1; the full
-              manifest lives in <code>src/theme-variables.js</code>. Compatibility note: Less
-              stylesheets may still <code>@import "ui-variables";</code> and use variables such as{" "}
-              <code>@text-color</code> &mdash; Lumine generates the Less variables from the active
-              theme's CSS palette automatically.
+              The full manifest lives in <code>src/theme-variables.js</code>. Every name a theme is
+              expected to define is listed there, and{" "}
+              <code>static/variables/base-variables.css</code> carries a fallback for each one, so a{" "}
+              <code>var()</code> always resolves even while themes are switching.
             </p>
 
             <h2>Text colors</h2>
@@ -310,9 +309,9 @@ module.exports = class StyleguideView {
 
             <h2>The palette</h2>
             <p>
-              A modern theme defines its palette as CSS custom properties in a{" "}
-              <code>variables.css</code> file. Values must be concrete colors (Lumine derives the
-              Less <code>ui-variables</code> for community packages from them):
+              A theme defines its palette as CSS custom properties in a <code>variables.css</code>{" "}
+              file. Values must be concrete colors, because core and package stylesheets feed them
+              to relative-color functions and to <code>color-mix()</code>:
             </p>
             <div className="example">
               <div className="example-code">
@@ -348,9 +347,9 @@ module.exports = class StyleguideView {
                       "name": "one-theme",
                       "themes": [
                         { "name": "one-day-ui", "theme": "ui", "styles": ["styles/ui", "styles/day-ui"] },
-                        { "name": "one-day-syntax", "theme": "syntax", "styles": "styles/day-syntax" },
+                        { "name": "one-day-syntax", "theme": "syntax", "styles": ["styles/syntax", "styles/day-syntax"] },
                         { "name": "one-night-ui", "theme": "ui", "styles": ["styles/ui", "styles/night-ui"] },
-                        { "name": "one-night-syntax", "theme": "syntax", "styles": "styles/night-syntax" }
+                        { "name": "one-night-syntax", "theme": "syntax", "styles": ["styles/syntax", "styles/night-syntax"] }
                       ]
                     }
                   `}
@@ -364,9 +363,11 @@ module.exports = class StyleguideView {
               <code>*.lumine-text-editor.css</code>.
             </p>
             <p>
-              Legacy themes that predate the CSS palette still work: define the classic Less{" "}
-              <code>ui-variables.less</code> / <code>syntax-variables.less</code> and Lumine bridges
-              them to the custom properties above automatically.
+              A theme that ships no <code>variables.css</code> defines none of the properties above
+              and is warned about on the console; every <code>var()</code> then falls back to{" "}
+              <code>static/variables/base-variables.css</code>, which is one fixed light palette. A
+              theme that only means to retouch another palette should load that theme's directory
+              first in its <code>styles</code> list rather than leaving the rest undefined.
             </p>
           </StyleguideSection>
 
