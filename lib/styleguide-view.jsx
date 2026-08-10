@@ -358,8 +358,11 @@ module.exports = class StyleguideView {
             </div>
             <p>
               A single-theme package instead uses a top-level <code>"theme": "ui"</code> (or{" "}
-              <code>"syntax"</code>) and puts its stylesheets in <code>styles/</code>. A syntax
-              theme scopes its rules to the editor by naming a file{" "}
+              <code>"syntax"</code>) and puts its stylesheets in <code>styles/</code>. Every
+              stylesheet of a syntax theme is scoped to the editor by the theme's type, so its file
+              names are free — split the rules across as many as reads well, and number them, since
+              they load in name order and later rules win. An ordinary package opts a single
+              stylesheet into that same editor scope by naming it{" "}
               <code>*.lumine-text-editor.css</code>.
             </p>
             <p>
