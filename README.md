@@ -10,7 +10,7 @@ A visual styleguide of the editor's UI components.
 
 ## Installation
 
-To install `styleguide` search for _styleguide_ in the Install pane of the Lumine settings or run `lumine --install lumine-code/styleguide`.
+To install `styleguide` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/styleguide`.
 
 ## Commands
 
