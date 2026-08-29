@@ -12,6 +12,12 @@ module.exports = class StyleguideView {
     this.collapsedSections = props.collapsedSections ? new Set(props.collapsedSections) : new Set();
     this.sections = [];
     etch.initialize(this);
+    this.destroyed = false;
+    this.resolvedValuesGeneration = 0;
+    this.resolvedValuesFrame = null;
+    this.resolvedValuesFrameWindow = null;
+    this.connectionObserver = null;
+    this.surfaceTransition = null;
     for (const section of this.sections) {
       if (this.collapsedSections.has(section.name)) {
         section.collapse();
@@ -23,18 +29,134 @@ module.exports = class StyleguideView {
     // Fill in the resolved value of every theme variable next to its swatch,
     // and keep it current as the active theme changes or sections expand.
     this.disposables = new CompositeDisposable();
-    this.disposables.add(lumine.themes.onDidChangeActiveThemes(() => this.updateResolvedValues()));
-    this.element.addEventListener("click", (event) => {
+    this.disposables.add(
+      lumine.themes.onDidChangeActiveThemes(() => this.scheduleResolvedValues()),
+    );
+    this.handleClick = (event) => {
       if (event.target.closest(".section-heading")) {
-        requestAnimationFrame(() => this.updateResolvedValues());
+        this.scheduleResolvedValues();
       }
-    });
-    requestAnimationFrame(() => this.updateResolvedValues());
+    };
+    this.element.addEventListener("click", this.handleClick);
+    this.scheduleResolvedValues();
   }
 
   destroy() {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    this.surfaceTransition = null;
+    this.cancelResolvedValuesSchedule();
+    this.element?.removeEventListener("click", this.handleClick);
     this.disposables?.dispose();
     this.sections = null;
+  }
+
+  beginWindowSurfaceTransition() {
+    this.cancelResolvedValuesSchedule();
+    const transition = {};
+    this.surfaceTransition = transition;
+    const finish = () => {
+      if (this.surfaceTransition !== transition) return;
+      this.surfaceTransition = null;
+      this.scheduleResolvedValues();
+    };
+    return { commit: finish, rollback: finish };
+  }
+
+  cancelResolvedValuesSchedule() {
+    this.resolvedValuesGeneration++;
+    const frame = this.resolvedValuesFrame;
+    const frameWindow = this.resolvedValuesFrameWindow;
+    this.resolvedValuesFrame = null;
+    this.resolvedValuesFrameWindow = null;
+    if (frame != null && frameWindow && !frameWindow.closed) {
+      try {
+        frameWindow.cancelAnimationFrame(frame);
+      } catch {
+        // The owner realm may close between the liveness check and cancellation.
+      }
+    }
+    this.disconnectConnectionObserver();
+  }
+
+  disconnectConnectionObserver(observer = this.connectionObserver) {
+    if (this.connectionObserver === observer) this.connectionObserver = null;
+    try {
+      observer?.disconnect();
+    } catch {
+      // The observer's realm may already have closed during native recovery.
+    }
+  }
+
+  scheduleResolvedValues() {
+    if (this.destroyed || !this.element || this.surfaceTransition) return;
+    this.cancelResolvedValuesSchedule();
+    this.scheduleResolvedValuesForGeneration(this.resolvedValuesGeneration);
+  }
+
+  scheduleResolvedValuesForGeneration(generation) {
+    if (this.destroyed || generation !== this.resolvedValuesGeneration) return;
+    const ownerDocument = this.element.ownerDocument;
+    const ownerWindow = ownerDocument?.defaultView;
+    if (!ownerWindow || ownerWindow.closed) return;
+    if (!this.element.isConnected) {
+      this.waitForConnection(generation, ownerDocument, ownerWindow);
+      return;
+    }
+
+    this.resolvedValuesFrameWindow = ownerWindow;
+    let frame;
+    try {
+      frame = ownerWindow.requestAnimationFrame(() => {
+        if (
+          this.destroyed ||
+          generation !== this.resolvedValuesGeneration ||
+          this.resolvedValuesFrame !== frame
+        ) {
+          return;
+        }
+        this.resolvedValuesFrame = null;
+        this.resolvedValuesFrameWindow = null;
+        if (this.element.ownerDocument !== ownerDocument || !this.element.isConnected) {
+          this.scheduleResolvedValuesForGeneration(generation);
+          return;
+        }
+        this.updateResolvedValues(ownerDocument, ownerWindow);
+      });
+    } catch {
+      this.resolvedValuesFrameWindow = null;
+      return;
+    }
+    this.resolvedValuesFrame = frame;
+  }
+
+  waitForConnection(generation, ownerDocument, ownerWindow) {
+    const Observer = ownerWindow.MutationObserver;
+    if (typeof Observer !== "function") return;
+    let observer;
+    const finish = () => {
+      if (
+        this.destroyed ||
+        generation !== this.resolvedValuesGeneration ||
+        this.connectionObserver !== observer
+      ) {
+        this.disconnectConnectionObserver(observer);
+        return;
+      }
+      if (this.element.ownerDocument !== ownerDocument || this.element.isConnected) {
+        this.disconnectConnectionObserver(observer);
+        this.scheduleResolvedValuesForGeneration(generation);
+      }
+    };
+    try {
+      observer = new Observer(finish);
+      this.connectionObserver = observer;
+      observer.observe(ownerDocument, { childList: true, subtree: true });
+    } catch {
+      this.disconnectConnectionObserver(observer);
+      return;
+    }
+    finish();
   }
 
   serialize() {
@@ -1586,11 +1708,22 @@ module.exports = class StyleguideView {
   // to. A hidden probe element resolves each `var()` to a used value (an
   // actual color / length / font family), which also works while a section is
   // collapsed.
-  updateResolvedValues() {
+  updateResolvedValues(
+    ownerDocument = this.element?.ownerDocument,
+    ownerWindow = ownerDocument?.defaultView,
+  ) {
     const container = this.element;
-    if (!container) return;
+    if (
+      this.destroyed ||
+      !container?.isConnected ||
+      container.ownerDocument !== ownerDocument ||
+      !ownerWindow ||
+      ownerWindow.closed
+    ) {
+      return;
+    }
 
-    const probe = document.createElement("span");
+    const probe = ownerDocument.createElement("span");
     probe.style.cssText = "position:absolute;visibility:hidden;pointer-events:none;display:block;";
     container.appendChild(probe);
     try {
@@ -1599,21 +1732,21 @@ module.exports = class StyleguideView {
         let value;
         if (el.classList.contains("is-color")) {
           probe.style.color = `var(--${name})`;
-          value = getComputedStyle(probe).color;
+          value = ownerWindow.getComputedStyle(probe).color;
           probe.style.color = "";
         } else if (el.classList.contains("is-font")) {
           probe.style.fontFamily = `var(--${name})`;
-          value = getComputedStyle(probe).fontFamily;
+          value = ownerWindow.getComputedStyle(probe).fontFamily;
           probe.style.fontFamily = "";
         } else {
           probe.style.width = `var(--${name})`;
-          value = getComputedStyle(probe).width;
+          value = ownerWindow.getComputedStyle(probe).width;
           probe.style.width = "";
         }
 
         let label = el.querySelector(":scope > .is-value");
         if (!label) {
-          label = document.createElement("span");
+          label = ownerDocument.createElement("span");
           label.className = "is-value";
           el.appendChild(label);
         }
