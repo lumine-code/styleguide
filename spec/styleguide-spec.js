@@ -1,7 +1,3 @@
-function wait(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 const COLOR_PATTERN = /^(rgb|rgba|color|oklch|lab|lch|hsl)/;
 
 function textColorSwatch(styleGuideView) {
@@ -62,8 +58,7 @@ describe("Style Guide", () => {
 
     it("documents both the classic and extended theme variables", async () => {
       jasmine.useRealClock();
-      // Sections render their content on an animation frame after expanding.
-      await wait(50);
+      await waitForTextColorSwatch(styleGuideView);
       const variableNames = Array.from(
         styleGuideView.element.querySelectorAll('[data-name="variables"] [data-var]'),
       ).map((el) => el.dataset.var);
@@ -79,12 +74,16 @@ describe("Style Guide", () => {
 
     it("does not auto-select an item in the showcase select list", async () => {
       jasmine.useRealClock();
-      // The section renders (and the select list filters/selects) on later frames.
-      await wait(50);
-
-      const section = styleGuideView.element.querySelector('[data-name="select-list"]');
-      // The live SelectListView is the first example in the section.
-      const liveExample = section.querySelector(".example");
+      let liveExample;
+      await conditionPromise(() => {
+        const section = styleGuideView.element.querySelector('[data-name="select-list"]');
+        liveExample = section?.querySelector(".example") ?? null;
+        const rows = liveExample?.querySelectorAll(
+          ".select-list .list-group > li:not(.select-list-separator)",
+        );
+        return rows?.length === 3;
+      }, "the showcase select list and its rows to render");
+      await lumine.views.getNextUpdatePromise();
 
       // A selected item would call scrollIntoViewIfNeeded and scroll the whole
       // styleguide down to this mid-page example on open.
