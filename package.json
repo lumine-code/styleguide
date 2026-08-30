@@ -36,7 +36,7 @@
     "StyleguideView": "createStyleguideView"
   },
   "dependencies": {
-    "@lumine-code/etch": "github:lumine-code/etch#ced81b11e336b839537fbe207d70b615cb89ad8a",
+    "@lumine-code/etch": "github:lumine-code/etch#caf7601cca3b105e502763391236bfaf86392e5a",
     "dedent": "^1.7.2"
   },
   "devDependencies": {
