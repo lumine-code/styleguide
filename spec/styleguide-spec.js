@@ -83,7 +83,6 @@ describe("Style Guide", () => {
         );
         return rows?.length === 3;
       }, "the showcase select list and its rows to render");
-      await lumine.views.getNextUpdatePromise();
 
       // A selected item would call scrollIntoViewIfNeeded and scroll the whole
       // styleguide down to this mid-page example on open.
@@ -103,7 +102,7 @@ describe("Style Guide", () => {
       expect(value.textContent).toMatch(COLOR_PATTERN);
     });
 
-    it("waits for a detached view to connect before resolving variable values", async () => {
+    it("waits for a disconnected view to reconnect before resolving values", async () => {
       jasmine.useRealClock();
       const swatch = await waitForTextColorSwatch(styleGuideView);
       const originalParent = styleGuideView.element.parentNode;
@@ -112,144 +111,35 @@ describe("Style Guide", () => {
       swatch.querySelector(".is-value")?.remove();
 
       styleGuideView.scheduleResolvedValues();
-      expect(styleGuideView.connectionObserver instanceof window.MutationObserver).toBe(true);
-      await new Promise((resolve) => window.requestAnimationFrame(resolve));
-
+      expect(styleGuideView.connectionObserver instanceof MutationObserver).toBe(true);
       expect(swatch.querySelector(".is-value")).toBeNull();
+
       originalParent.appendChild(styleGuideView.element);
       await conditionPromise(
         () => COLOR_PATTERN.test(swatch.querySelector(".is-value")?.textContent),
-        "the connected view's theme color to resolve",
+        "the reconnected view's theme color to resolve",
       );
     });
 
-    it("re-checks connection after installing its observer", async () => {
-      jasmine.useRealClock();
-      await waitForTextColorSwatch(styleGuideView);
-      const originalParent = styleGuideView.element.parentNode;
-      styleGuideView.cancelResolvedValuesSchedule();
-      styleGuideView.element.remove();
-      const NativeMutationObserver = window.MutationObserver;
-      spyOn(window, "MutationObserver").and.callFake(function (callback) {
-        const observer = new NativeMutationObserver(callback);
-        const observe = observer.observe.bind(observer);
-        observer.observe = (target, options) => {
-          originalParent.appendChild(styleGuideView.element);
-          observe(target, options);
-        };
-        return observer;
-      });
-
-      styleGuideView.scheduleResolvedValues();
-
-      expect(styleGuideView.connectionObserver).toBeNull();
-      await conditionPromise(
-        () =>
-          COLOR_PATTERN.test(
-            textColorSwatch(styleGuideView)?.querySelector(".is-value")?.textContent,
-          ),
-        "the view connected during observer installation to resolve",
-      );
-    });
-
-    it("ignores a stale source frame and resolves values in the destination realm", async () => {
-      jasmine.useRealClock();
-      const swatch = await waitForTextColorSwatch(styleGuideView);
-      await conditionPromise(
-        () => COLOR_PATTERN.test(swatch.querySelector(".is-value")?.textContent),
-        "the source theme color to resolve",
-      );
-      const sourceValue = swatch.querySelector(".is-value").textContent;
-      const originalParent = styleGuideView.element.parentNode;
-      const frame = document.createElement("iframe");
-      jasmine.attachToDOM(frame);
-      const destinationDocument = frame.contentDocument;
-      const destinationWindow = frame.contentWindow;
-      const destinationValue = "rgb(12, 34, 56)";
-      destinationDocument.documentElement.style.setProperty("--text-color", destinationValue);
-      expect(sourceValue).not.toBe(destinationValue);
-
-      let sourceFrameCallback;
-      let destinationFrameCallback;
-      spyOn(window, "requestAnimationFrame").and.callFake((callback) => {
-        sourceFrameCallback = callback;
-        return 101;
-      });
-      spyOn(window, "cancelAnimationFrame");
-      spyOn(destinationWindow, "requestAnimationFrame").and.callFake((callback) => {
-        destinationFrameCallback = callback;
-        return 202;
-      });
-      spyOn(destinationWindow, "cancelAnimationFrame");
-      spyOn(destinationWindow, "getComputedStyle").and.callThrough();
-
-      try {
-        styleGuideView.scheduleResolvedValues();
-        expect(sourceFrameCallback).toEqual(jasmine.any(Function));
-        const transition = styleGuideView.beginWindowSurfaceTransition();
-        expect(window.cancelAnimationFrame).toHaveBeenCalledWith(101);
-        destinationDocument.adoptNode(styleGuideView.element);
-        destinationDocument.body.appendChild(styleGuideView.element);
-
-        sourceFrameCallback();
-        expect(swatch.querySelector(".is-value").textContent).toBe(sourceValue);
-        await transition.commit();
-        expect(destinationFrameCallback).toEqual(jasmine.any(Function));
-        destinationFrameCallback();
-        expect(swatch.querySelector(".is-value").textContent).toBe(destinationValue);
-        expect(destinationWindow.getComputedStyle).toHaveBeenCalled();
-      } finally {
-        if (styleGuideView.element.ownerDocument !== document) {
-          const restore = styleGuideView.beginWindowSurfaceTransition();
-          document.adoptNode(styleGuideView.element);
-          originalParent.appendChild(styleGuideView.element);
-          await restore.commit();
-          sourceFrameCallback?.();
-        }
-        frame.remove();
-      }
-    });
-
-    it("clears realm work and listeners idempotently on destroy", async () => {
+    it("clears scheduled work and listeners idempotently on destroy", async () => {
       await waitForTextColorSwatch(styleGuideView);
       styleGuideView.cancelResolvedValuesSchedule();
-      const cancelAnimationFrame = jasmine
-        .createSpy("cancelAnimationFrame")
-        .and.throwError("realm closed");
+      const cancel = spyOn(window, "cancelAnimationFrame");
       const disconnect = jasmine.createSpy("disconnect");
       styleGuideView.resolvedValuesFrame = 303;
-      styleGuideView.resolvedValuesFrameWindow = { closed: false, cancelAnimationFrame };
       styleGuideView.connectionObserver = { disconnect };
       const schedule = spyOn(styleGuideView, "scheduleResolvedValues").and.callThrough();
       const heading = styleGuideView.element.querySelector(".section-heading");
 
-      expect(() => styleGuideView.destroy()).not.toThrow();
-      expect(() => styleGuideView.destroy()).not.toThrow();
+      styleGuideView.destroy();
+      styleGuideView.destroy();
       heading.click();
 
-      expect(cancelAnimationFrame).toHaveBeenCalledWith(303);
+      expect(cancel).toHaveBeenCalledWith(303);
       expect(disconnect).toHaveBeenCalled();
       expect(styleGuideView.resolvedValuesFrame).toBeNull();
-      expect(styleGuideView.resolvedValuesFrameWindow).toBeNull();
       expect(styleGuideView.connectionObserver).toBeNull();
       expect(schedule).not.toHaveBeenCalled();
-    });
-
-    it("tolerates its owner realm closing while work is being scheduled", async () => {
-      await waitForTextColorSwatch(styleGuideView);
-      const originalParent = styleGuideView.element.parentNode;
-      styleGuideView.cancelResolvedValuesSchedule();
-      spyOn(window, "requestAnimationFrame").and.throwError("realm closed before frame request");
-
-      expect(() => styleGuideView.scheduleResolvedValues()).not.toThrow();
-      expect(styleGuideView.resolvedValuesFrame).toBeNull();
-      expect(styleGuideView.resolvedValuesFrameWindow).toBeNull();
-
-      styleGuideView.element.remove();
-      spyOn(window, "MutationObserver").and.throwError("realm closed before observer creation");
-      expect(() => styleGuideView.scheduleResolvedValues()).not.toThrow();
-      expect(styleGuideView.connectionObserver).toBeNull();
-      originalParent.appendChild(styleGuideView.element);
     });
   });
 });

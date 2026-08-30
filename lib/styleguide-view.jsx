@@ -15,9 +15,7 @@ module.exports = class StyleguideView {
     this.destroyed = false;
     this.resolvedValuesGeneration = 0;
     this.resolvedValuesFrame = null;
-    this.resolvedValuesFrameWindow = null;
     this.connectionObserver = null;
-    this.surfaceTransition = null;
     for (const section of this.sections) {
       if (this.collapsedSections.has(section.name)) {
         section.collapse();
@@ -44,95 +42,58 @@ module.exports = class StyleguideView {
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
-    this.surfaceTransition = null;
     this.cancelResolvedValuesSchedule();
     this.element?.removeEventListener("click", this.handleClick);
     this.disposables?.dispose();
     this.sections = null;
   }
 
-  beginWindowSurfaceTransition() {
-    this.cancelResolvedValuesSchedule();
-    const transition = {};
-    this.surfaceTransition = transition;
-    const finish = () => {
-      if (this.surfaceTransition !== transition) return;
-      this.surfaceTransition = null;
-      this.scheduleResolvedValues();
-    };
-    return { commit: finish, rollback: finish };
-  }
-
   cancelResolvedValuesSchedule() {
     this.resolvedValuesGeneration++;
     const frame = this.resolvedValuesFrame;
-    const frameWindow = this.resolvedValuesFrameWindow;
     this.resolvedValuesFrame = null;
-    this.resolvedValuesFrameWindow = null;
-    if (frame != null && frameWindow && !frameWindow.closed) {
-      try {
-        frameWindow.cancelAnimationFrame(frame);
-      } catch {
-        // The owner realm may close between the liveness check and cancellation.
-      }
-    }
+    if (frame != null) cancelAnimationFrame(frame);
     this.disconnectConnectionObserver();
   }
 
   disconnectConnectionObserver(observer = this.connectionObserver) {
     if (this.connectionObserver === observer) this.connectionObserver = null;
-    try {
-      observer?.disconnect();
-    } catch {
-      // The observer's realm may already have closed during native recovery.
-    }
+    observer?.disconnect();
   }
 
   scheduleResolvedValues() {
-    if (this.destroyed || !this.element || this.surfaceTransition) return;
+    if (this.destroyed || !this.element) return;
     this.cancelResolvedValuesSchedule();
     this.scheduleResolvedValuesForGeneration(this.resolvedValuesGeneration);
   }
 
   scheduleResolvedValuesForGeneration(generation) {
     if (this.destroyed || generation !== this.resolvedValuesGeneration) return;
-    const ownerDocument = this.element.ownerDocument;
-    const ownerWindow = ownerDocument?.defaultView;
-    if (!ownerWindow || ownerWindow.closed) return;
     if (!this.element.isConnected) {
-      this.waitForConnection(generation, ownerDocument, ownerWindow);
+      this.waitForConnection(generation);
       return;
     }
 
-    this.resolvedValuesFrameWindow = ownerWindow;
     let frame;
-    try {
-      frame = ownerWindow.requestAnimationFrame(() => {
-        if (
-          this.destroyed ||
-          generation !== this.resolvedValuesGeneration ||
-          this.resolvedValuesFrame !== frame
-        ) {
-          return;
-        }
-        this.resolvedValuesFrame = null;
-        this.resolvedValuesFrameWindow = null;
-        if (this.element.ownerDocument !== ownerDocument || !this.element.isConnected) {
-          this.scheduleResolvedValuesForGeneration(generation);
-          return;
-        }
-        this.updateResolvedValues(ownerDocument, ownerWindow);
-      });
-    } catch {
-      this.resolvedValuesFrameWindow = null;
-      return;
-    }
+    frame = requestAnimationFrame(() => {
+      if (
+        this.destroyed ||
+        generation !== this.resolvedValuesGeneration ||
+        this.resolvedValuesFrame !== frame
+      ) {
+        return;
+      }
+      this.resolvedValuesFrame = null;
+      if (!this.element.isConnected) {
+        this.scheduleResolvedValuesForGeneration(generation);
+        return;
+      }
+      this.updateResolvedValues();
+    });
     this.resolvedValuesFrame = frame;
   }
 
-  waitForConnection(generation, ownerDocument, ownerWindow) {
-    const Observer = ownerWindow.MutationObserver;
-    if (typeof Observer !== "function") return;
+  waitForConnection(generation) {
     let observer;
     const finish = () => {
       if (
@@ -143,19 +104,14 @@ module.exports = class StyleguideView {
         this.disconnectConnectionObserver(observer);
         return;
       }
-      if (this.element.ownerDocument !== ownerDocument || this.element.isConnected) {
+      if (this.element.isConnected) {
         this.disconnectConnectionObserver(observer);
         this.scheduleResolvedValuesForGeneration(generation);
       }
     };
-    try {
-      observer = new Observer(finish);
-      this.connectionObserver = observer;
-      observer.observe(ownerDocument, { childList: true, subtree: true });
-    } catch {
-      this.disconnectConnectionObserver(observer);
-      return;
-    }
+    observer = new MutationObserver(finish);
+    this.connectionObserver = observer;
+    observer.observe(document, { childList: true, subtree: true });
     finish();
   }
 
@@ -1708,22 +1664,11 @@ module.exports = class StyleguideView {
   // to. A hidden probe element resolves each `var()` to a used value (an
   // actual color / length / font family), which also works while a section is
   // collapsed.
-  updateResolvedValues(
-    ownerDocument = this.element?.ownerDocument,
-    ownerWindow = ownerDocument?.defaultView,
-  ) {
+  updateResolvedValues() {
     const container = this.element;
-    if (
-      this.destroyed ||
-      !container?.isConnected ||
-      container.ownerDocument !== ownerDocument ||
-      !ownerWindow ||
-      ownerWindow.closed
-    ) {
-      return;
-    }
+    if (this.destroyed || !container?.isConnected) return;
 
-    const probe = ownerDocument.createElement("span");
+    const probe = document.createElement("span");
     probe.style.cssText = "position:absolute;visibility:hidden;pointer-events:none;display:block;";
     container.appendChild(probe);
     try {
@@ -1732,21 +1677,21 @@ module.exports = class StyleguideView {
         let value;
         if (el.classList.contains("is-color")) {
           probe.style.color = `var(--${name})`;
-          value = ownerWindow.getComputedStyle(probe).color;
+          value = getComputedStyle(probe).color;
           probe.style.color = "";
         } else if (el.classList.contains("is-font")) {
           probe.style.fontFamily = `var(--${name})`;
-          value = ownerWindow.getComputedStyle(probe).fontFamily;
+          value = getComputedStyle(probe).fontFamily;
           probe.style.fontFamily = "";
         } else {
           probe.style.width = `var(--${name})`;
-          value = ownerWindow.getComputedStyle(probe).width;
+          value = getComputedStyle(probe).width;
           probe.style.width = "";
         }
 
         let label = el.querySelector(":scope > .is-value");
         if (!label) {
-          label = ownerDocument.createElement("span");
+          label = document.createElement("span");
           label.className = "is-value";
           el.appendChild(label);
         }
