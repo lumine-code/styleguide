@@ -6,6 +6,45 @@ const CodeBlock = require("./code-block");
 const StyleguideSection = require("./styleguide-section");
 const ExampleSelectListView = require("./example-select-list-view");
 
+class SelectBoxExample {
+  constructor() {
+    this.controller = lumine.menu.createSelectBox({
+      className: "input-select",
+      ariaLabel: "Example option",
+      items: ["Option 1", "Option 2", "Option 3"],
+      value: "Option 1",
+    });
+    etch.initialize(this);
+    this.refs.rendered.appendChild(this.controller.element);
+  }
+
+  update() {
+    return Promise.resolve();
+  }
+
+  render() {
+    const code = dedent`
+      const selectBox = lumine.menu.createSelectBox({
+        items: ['Option 1', 'Option 2', 'Option 3'],
+        value: 'Option 1'
+      })
+    `;
+    return (
+      <div className="example">
+        <div ref="rendered" className="example-rendered" />
+        <div className="example-code show-example-html">
+          <CodeBlock cssClass="example-html" grammarScopeName="source.js" code={code} />
+        </div>
+      </div>
+    );
+  }
+
+  destroy() {
+    this.controller.destroy();
+    return etch.destroy(this);
+  }
+}
+
 module.exports = class StyleguideView {
   constructor(props) {
     this.uri = props.uri;
@@ -722,8 +761,8 @@ module.exports = class StyleguideView {
             {this.renderExampleHTML(dedent`
               <input class='input-color' type='color' value='#FF85FF'>
               <input class='input-number' type='number' min='1' max='10' placeholder='1-10'>
-              <select class='input-select'><option>Option 1</option><option>Option 2</option><option>Option 3</option></select>
             `)}
+            <SelectBoxExample />
           </StyleguideSection>
 
           <StyleguideSection
