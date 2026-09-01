@@ -84,7 +84,7 @@
 
   .section-heading.section-heading {
     padding: var(--styleguide-spacing) var(--styleguide-spacing) 0 var(--styleguide-spacing);
-    cursor: pointer;
+    cursor: default;
     font-weight: normal;
     font-size: 1.8em;
     color: var(--text-color-highlight);
