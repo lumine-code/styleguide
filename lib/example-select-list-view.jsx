@@ -6,7 +6,7 @@ const CodeBlock = require("./code-block");
 module.exports = class ExampleSelectListView {
   constructor() {
     this.jsExampleCode = dedent`
-    const selectListView = lumine.workspace.buildSelectList({
+    const selectListHost = lumine.workspace.addSelectList({
       items: ['one', 'two', 'three'],
       renderItem: (item) => ({ primary: item }),
       commands: {
@@ -22,16 +22,17 @@ module.exports = class ExampleSelectListView {
         disposition: 'close'
       }]
     })
-    selectListView.onDidCancel(() => {
+    const selectList = selectListHost.getModel()
+    selectListHost.onDidCancel(() => {
       console.log('cancelled')
     })
-    selectListView.show()
+    selectListHost.show()
     `;
 
     // The list is built rather than rendered as an etch component: the editor
     // hands back an instance, and etch needs a constructor in tag position. Its
     // element is adopted into the tree below instead.
-    this.selectListView = lumine.workspace.buildSelectList({
+    this.selectList = lumine.workspace.buildSelectList({
       items: ["one", "two", "three"],
       // This is a static showcase, not a live picker in a fixed modal.
       // Leaving the selection empty avoids scrolling the whole styleguide to
@@ -49,14 +50,12 @@ module.exports = class ExampleSelectListView {
           command: "styleguide:confirm-example-item",
           context: "item",
           primary: true,
-          disposition: "close",
+          disposition: "stay",
         },
       ],
     });
-    this.cancelSubscription = this.selectListView.onDidCancel(() => this.logCancellation());
-
     etch.initialize(this);
-    this.refs.host.appendChild(this.selectListView.getElement());
+    this.refs.host.appendChild(this.selectList.getElement());
   }
 
   renderItem(item) {
@@ -65,10 +64,6 @@ module.exports = class ExampleSelectListView {
 
   confirmItem(item) {
     console.log("confirmed", item);
-  }
-
-  logCancellation() {
-    console.log("cancelled");
   }
 
   render() {
@@ -91,8 +86,7 @@ module.exports = class ExampleSelectListView {
   update() {}
 
   destroy() {
-    this.cancelSubscription.dispose();
-    this.selectListView.destroy();
+    this.selectList.destroy();
     return etch.destroy(this);
   }
 };
