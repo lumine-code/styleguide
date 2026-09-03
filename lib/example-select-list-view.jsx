@@ -8,18 +8,24 @@ module.exports = class ExampleSelectListView {
     this.jsExampleCode = dedent`
     const selectListView = lumine.workspace.buildSelectList({
       items: ['one', 'two', 'three'],
-      elementForItem: (item) => {
-        const li = document.createElement('li')
-        li.textContent = item
-        return li
+      renderItem: (item) => ({ primary: item }),
+      commands: {
+        'example:confirm': {
+          description: 'Confirm the selected example item.',
+          didDispatch: (event) => console.log('confirmed', event.detail.item)
+        }
       },
-      didConfirmSelection: (item) => {
-        console.log('confirmed', item)
-      },
-      didCancelSelection: () => {
-        console.log('cancelled')
-      }
+      actions: [{
+        command: 'example:confirm',
+        context: 'item',
+        primary: true,
+        disposition: 'close'
+      }]
     })
+    selectListView.onDidCancel(() => {
+      console.log('cancelled')
+    })
+    selectListView.show()
     `;
 
     // The list is built rather than rendered as an etch component: the editor
@@ -28,29 +34,40 @@ module.exports = class ExampleSelectListView {
     this.selectListView = lumine.workspace.buildSelectList({
       items: ["one", "two", "three"],
       // This is a static showcase, not a live picker in a fixed modal.
-      // Auto-selecting an item would call scrollIntoViewIfNeeded and
-      // scroll the whole styleguide down to this mid-page example.
-      initialSelectionIndex: undefined,
-      elementForItem: this.elementForItem.bind(this),
-      didConfirmSelection: this.didConfirmSelection.bind(this),
-      didCancelSelection: this.didCancelSelection.bind(this),
+      // Leaving the selection empty avoids scrolling the whole styleguide to
+      // this mid-page example.
+      selection: { allowEmpty: true, initial: { mode: "none" } },
+      renderItem: this.renderItem.bind(this),
+      commands: {
+        "styleguide:confirm-example-item": {
+          description: "Confirm the selected example item.",
+          didDispatch: (event) => this.confirmItem(event.detail.item),
+        },
+      },
+      actions: [
+        {
+          command: "styleguide:confirm-example-item",
+          context: "item",
+          primary: true,
+          disposition: "close",
+        },
+      ],
     });
+    this.cancelSubscription = this.selectListView.onDidCancel(() => this.logCancellation());
 
     etch.initialize(this);
-    this.refs.host.appendChild(this.selectListView.element);
+    this.refs.host.appendChild(this.selectListView.getElement());
   }
 
-  elementForItem(item) {
-    const li = document.createElement("li");
-    li.textContent = item;
-    return li;
+  renderItem(item) {
+    return { primary: item };
   }
 
-  didConfirmSelection(item) {
+  confirmItem(item) {
     console.log("confirmed", item);
   }
 
-  didCancelSelection() {
+  logCancellation() {
     console.log("cancelled");
   }
 
@@ -74,6 +91,7 @@ module.exports = class ExampleSelectListView {
   update() {}
 
   destroy() {
+    this.cancelSubscription.dispose();
     this.selectListView.destroy();
     return etch.destroy(this);
   }
