@@ -85,6 +85,7 @@ module.exports = class StyleguideView {
     this.element?.removeEventListener("click", this.handleClick);
     this.disposables?.dispose();
     this.sections = null;
+    return etch.destroy(this);
   }
 
   cancelResolvedValuesSchedule() {

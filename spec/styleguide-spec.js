@@ -34,6 +34,13 @@ describe("Style Guide", () => {
       expect(styleGuideView.element.textContent).toContain("Styleguide");
     });
 
+    it("closes views owned by the package on deactivation", async () => {
+      await lumine.packages.deactivatePackage("styleguide");
+
+      expect(lumine.workspace.paneForItem(styleGuideView)).toBeUndefined();
+      expect(styleGuideView.destroyed).toBe(true);
+    });
+
     it("assigns a grammar to its editors even if present before the correct grammar is added", async () => {
       jasmine.useRealClock();
       // Sections render on later animation frames and the grammar assignment
