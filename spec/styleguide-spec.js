@@ -21,6 +21,7 @@ describe("Style Guide", () => {
   beforeEach(async () => {
     workspaceElement = lumine.views.getView(lumine.workspace);
     jasmine.attachToDOM(workspaceElement);
+    await lumine.packages.activatePackage("language-text");
     await lumine.packages.activatePackage("styleguide");
   });
 
@@ -52,7 +53,7 @@ describe("Style Guide", () => {
       );
       const editor = styleGuideView.element.querySelector(".example-html lumine-text-editor");
       const te = editor.getModel();
-      expect(te.getGrammar()?.scopeName).toBe("text.plain.null-grammar");
+      expect(te.getGrammar()?.scopeName).toBe("text.plain");
 
       await lumine.packages.activatePackage("language-html");
       await conditionPromise(
