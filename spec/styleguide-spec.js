@@ -78,7 +78,13 @@ describe("Style Guide", () => {
         const row = styleGuideView.element.querySelector(`[data-var="${definition.name}"]`);
         expect(row.dataset.type).toBe(definition.type);
         expect(row.dataset.scope).toBe(definition.scope);
-        expect(row.querySelector(".is-metadata").textContent).toContain(definition.description);
+        expect(row.querySelector(".is-description").textContent).toBe(definition.description);
+        expect(row.parentElement.classList.contains("variable-colors")).toBe(
+          definition.type === "color",
+        );
+        expect(row.parentElement.classList.contains("variable-values")).toBe(
+          definition.type !== "color",
+        );
       }
     });
 

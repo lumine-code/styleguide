@@ -1,6 +1,36 @@
 .styleguide [data-name="variables"] {
-  /* Each swatch draws its own color/size from the --swatch custom property,
+  /* Each color swatch draws its fill from the --swatch custom property,
      which the markup sets to var(--<name>). */
+
+  > h3 {
+    font-size: 1.2em;
+    margin: 1em var(--styleguide-spacing) 0;
+  }
+
+  .example-rendered {
+    display: grid;
+    column-gap: 1em;
+    overflow-x: auto;
+  }
+
+  .variable-colors {
+    grid-template-columns: minmax(3em, 20%) max-content max-content minmax(12em, 1fr);
+    --name-column: 2;
+    --value-column: 3;
+    --description-column: 4;
+  }
+
+  .variable-values {
+    grid-template-columns: max-content fit-content(30%) minmax(12em, 1fr);
+    --name-column: 1;
+    --value-column: 2;
+    --description-column: 3;
+
+    .is-value {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+  }
 
   .is-color,
   .is-size,
@@ -9,43 +39,28 @@
   .is-number,
   .is-boolean,
   .is-line-height {
-    display: block;
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    align-items: center;
     padding: 2px 0;
-  }
 
-  .is-color:before,
-  .is-size:after,
-  .is-radius:after {
-    content: "";
-    display: inline-block;
-    height: 20px;
-    vertical-align: middle;
+    > code {
+      grid-column: var(--name-column);
+      grid-row: 1;
+      justify-self: start;
+    }
   }
 
   .is-color:before {
-    width: 20%;
-    margin-right: calc(var(--ui-spacing) * 1.5);
+    content: "";
+    grid-column: 1;
+    grid-row: 1;
+    height: 20px;
+    width: 100%;
     border-radius: 3px;
     background-color: var(--swatch);
     box-shadow: inset 0 0 0 1px var(--base-border-color);
-  }
-
-  .is-size:after {
-    width: var(--swatch);
-    height: 4px;
-    margin-left: calc(var(--ui-spacing) * 1.5);
-    background-color: var(--text-color);
-  }
-
-  .is-radius:after {
-    width: 20px;
-    margin-left: calc(var(--ui-spacing) * 1.5);
-    border-radius: var(--swatch);
-    background-color: var(--text-color);
-  }
-
-  .is-font {
-    font-family: var(--swatch);
   }
 
   .is-spacer {
@@ -54,16 +69,19 @@
 
   /* The resolved value injected next to each swatch by updateResolvedValues. */
   .is-value {
-    margin-left: 0.6em;
+    grid-column: var(--value-column);
+    grid-row: 1;
+    white-space: nowrap;
     color: var(--text-color-subtle);
     font-family: var(--editor-font-family, monospace);
     font-size: 0.9em;
   }
 
-  .is-metadata {
-    display: block;
-    margin-top: 0.25em;
-    margin-bottom: 0.75em;
+  .is-description {
+    grid-column: var(--description-column);
+    grid-row: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
     color: var(--text-color-subtle);
     font-family: var(--ui-font-family);
     font-size: 0.9em;

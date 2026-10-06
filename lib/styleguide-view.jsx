@@ -228,9 +228,8 @@ module.exports = class StyleguideView {
               by the editor on <code>lumine-workspace</code>.
             </p>
             <p>
-              The metadata below identifies each variable's type, owner, scope and default. Set
-              theme inputs on <code>:root</code>; a default that refers to another variable is an
-              optional derived value you can override directly. Changing an input only within a
+              Set theme inputs on <code>:root</code>; a default that refers to another variable is
+              an optional derived value you can override directly. Changing an input only within a
               descendant does not recompute a derived value inherited from <code>:root</code>.
             </p>
 
@@ -1506,21 +1505,33 @@ module.exports = class StyleguideView {
   }
 
   renderVariableGroups() {
-    const groups = new Map();
-    for (const variable of this.themeVariables) {
-      if (!groups.has(variable.group)) groups.set(variable.group, []);
-      groups.get(variable.group).push(variable);
-    }
-    return Array.from(groups, ([group, variables]) => [
-      <h2>{group}</h2>,
-      this.renderVars(variables),
-    ]);
+    return [
+      ["Colors", "variable-colors", (variable) => variable.type === "color"],
+      ["Other variables", "variable-values", (variable) => variable.type !== "color"],
+    ].map(([title, tableClass, matches]) => {
+      const groups = new Map();
+      for (const variable of this.themeVariables.filter(matches)) {
+        const group =
+          tableClass === "variable-values" && variable.group === "Component colors"
+            ? "Components"
+            : variable.group;
+        if (!groups.has(group)) groups.set(group, []);
+        groups.get(group).push(variable);
+      }
+      return [
+        <h2>{title}</h2>,
+        Array.from(groups, ([group, variables]) => [
+          <h3>{group}</h3>,
+          this.renderVars(variables, tableClass),
+        ]),
+      ];
+    });
   }
 
-  renderVars(variables) {
+  renderVars(variables, tableClass) {
     return (
       <div className="example">
-        <div className="example-rendered">
+        <div className={`example-rendered ${tableClass}`}>
           {variables.map((variable) => {
             const kind =
               variable.type === "length"
@@ -1537,11 +1548,7 @@ module.exports = class StyleguideView {
                 style={`--swatch: var(--${variable.name})`}
               >
                 <code>--{variable.name}</code>
-                <span className="is-metadata">
-                  {variable.description} {variable.type}; {variable.role}; {variable.owner};{" "}
-                  {variable.scope}. Default:{" "}
-                  <code>{variable.default ?? "editor configuration"}</code>.
-                </span>
+                <span className="is-description">{variable.description}</span>
               </div>
             );
           })}
@@ -1591,7 +1598,7 @@ module.exports = class StyleguideView {
         if (!label) {
           label = document.createElement("span");
           label.className = "is-value";
-          el.insertBefore(label, el.querySelector(":scope > .is-metadata"));
+          el.insertBefore(label, el.querySelector(":scope > .is-description"));
         }
         label.textContent = value;
       }
