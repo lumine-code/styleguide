@@ -4,12 +4,13 @@
 }
 
 .styleguide {
-  /* Package-local values (converted from Less variables) */
   --styleguide-spacing: calc(var(--ui-spacing) * 1.5);
 
   position: relative;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  min-height: 0;
 
   a {
     text-decoration: underline;
@@ -25,13 +26,15 @@
 }
 
 .styleguide-controls {
-  position: absolute;
-  right: var(--ui-spacing);
-  top: var(--ui-spacing);
-  z-index: 100;
+  flex: 0 0 auto;
 }
 
 .styleguide-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--styleguide-spacing);
   padding: var(--styleguide-spacing);
   border-bottom: 1px solid var(--base-border-color);
   h1 {
@@ -47,8 +50,14 @@
   }
 }
 
+.styleguide-intro {
+  flex: 1 1 18em;
+  min-width: 0;
+}
+
 .styleguide-sections {
   flex: 1;
+  min-height: 0;
   overflow: auto;
 
   & > section {
@@ -83,14 +92,31 @@
   }
 
   .section-heading.section-heading {
+    margin: 0;
     padding: var(--styleguide-spacing) var(--styleguide-spacing) 0 var(--styleguide-spacing);
-    cursor: default;
     font-weight: normal;
     font-size: 1.8em;
     color: var(--text-color-highlight);
   }
 
-  section > h2 {
+  .section-toggle {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--accent-indicator-color);
+      outline-offset: 4px;
+    }
+  }
+
+  section > h3 {
     font-size: 1.5em;
     line-height: 1.2;
     margin: 1em var(--styleguide-spacing) 0 var(--styleguide-spacing);
@@ -124,7 +150,7 @@
   .example-rendered {
     padding: var(--ui-spacing);
     background: var(--base-background-color); /* @example-background */
-    overflow: hidden;
+    overflow: auto;
   }
 
   .example-code {

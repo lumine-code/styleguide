@@ -3,11 +3,15 @@ const { CompositeDisposable } = require("lumine");
 const etch = require("@lumine-code/etch");
 const dedent = require("dedent");
 const CodeBlock = require("./code-block");
+const HTMLExample = require("./html-example");
 const StyleguideSection = require("./styleguide-section");
 const ExampleSelectListView = require("./example-select-list-view");
+const ICON_NAMES = require("./icon-names.json");
+const { InputDialogExample, MenuExample, TooltipExample } = require("./interactive-examples");
 
 class SelectBoxExample {
-  constructor() {
+  constructor({ onDidInitialize } = {}) {
+    this.destroyed = false;
     this.controller = lumine.menu.createSelectBox({
       className: "input-select",
       ariaLabel: "Example option",
@@ -16,6 +20,7 @@ class SelectBoxExample {
     });
     etch.initialize(this);
     this.refs.rendered.appendChild(this.controller.element);
+    onDidInitialize?.(this);
   }
 
   update() {
@@ -32,16 +37,19 @@ class SelectBoxExample {
     return (
       <div className="example">
         <div ref="rendered" className="example-rendered" />
-        <div className="example-code show-example-html">
-          <CodeBlock cssClass="example-html" grammarScopeName="source.js" code={code} />
+        <div className="example-code">
+          <CodeBlock cssClass="example-js" grammarScopeName="source.js" code={code} />
         </div>
       </div>
     );
   }
 
   destroy() {
+    if (this.destroyed) return this.destructionPromise;
+    this.destroyed = true;
     this.controller.destroy();
-    return etch.destroy(this);
+    this.destructionPromise = etch.destroy(this);
+    return this.destructionPromise;
   }
 }
 
@@ -50,6 +58,7 @@ module.exports = class StyleguideView {
     this.uri = props.uri;
     this.collapsedSections = props.collapsedSections ? new Set(props.collapsedSections) : new Set();
     this.sections = [];
+    this.examples = new Set();
     this.themeVariables = lumine.themes.getVariables();
     etch.initialize(this);
     this.destroyed = false;
@@ -68,23 +77,21 @@ module.exports = class StyleguideView {
     // and keep it current as the active theme changes or sections expand.
     this.disposables = new CompositeDisposable();
     this.disposables.add(lumine.themes.onDidChangeVariables(() => this.scheduleResolvedValues()));
-    this.handleClick = (event) => {
-      if (event.target.closest(".section-heading")) {
-        this.scheduleResolvedValues();
-      }
-    };
-    this.element.addEventListener("click", this.handleClick);
     this.scheduleResolvedValues();
   }
 
   destroy() {
-    if (this.destroyed) return;
+    if (this.destroyed) return this.destructionPromise;
     this.destroyed = true;
     this.cancelResolvedValuesSchedule();
-    this.element?.removeEventListener("click", this.handleClick);
     this.disposables?.dispose();
-    this.sections = null;
-    return etch.destroy(this);
+    const destructions = this.sections.map((section) => section.destroy());
+    destructions.push(...Array.from(this.examples, (example) => example.destroy()));
+    this.examples.clear();
+    destructions.push(etch.destroy(this));
+    this.sections = [];
+    this.destructionPromise = Promise.all(destructions);
+    return this.destructionPromise;
   }
 
   cancelResolvedValuesSchedule() {
@@ -163,7 +170,7 @@ module.exports = class StyleguideView {
   }
 
   update() {
-    // intentionally empty.
+    return Promise.resolve();
   }
 
   getURI() {
@@ -179,29 +186,27 @@ module.exports = class StyleguideView {
   }
 
   expandAll() {
-    for (const section of this.sections) {
-      section.expand();
-    }
+    return Promise.all(this.sections.map((section) => section.expand()));
   }
 
   collapseAll() {
-    for (const section of this.sections) {
-      section.collapse();
-    }
+    return Promise.all(this.sections.map((section) => section.collapse()));
   }
 
   render() {
     return (
       <div className="styleguide pane-item native-key-bindings" tabIndex="-1">
         <header className="styleguide-header">
-          <h1>Styleguide</h1>
-          <p>This exercises all UI components and acts as a styleguide.</p>
+          <div className="styleguide-intro">
+            <h1>Styleguide</h1>
+            <p>Explore the editor's components and theme variables.</p>
+          </div>
 
           <div className="styleguide-controls btn-group">
-            <button className="btn" onclick={() => this.collapseAll()}>
+            <button type="button" className="btn" onclick={() => this.collapseAll()}>
               Collapse All
             </button>
-            <button className="btn" onclick={() => this.expandAll()}>
+            <button type="button" className="btn" onclick={() => this.expandAll()}>
               Expand All
             </button>
           </div>
@@ -214,23 +219,9 @@ module.exports = class StyleguideView {
             title="Variables"
           >
             <p>
-              Use these theme variables in your package's stylesheets so it matches the overall
-              look. They are CSS custom properties set by the active themes &mdash; consume them
-              with <code>var()</code>, for example <code>color: var(--text-color);</code> or{" "}
-              <code>background-color: var(--accent-background-color);</code>. The value shown next
-              to each name is what the currently active theme resolves it to.
-            </p>
-            <p>
-              This complete list comes from <code>lumine.themes.getVariables()</code>. Semantic
-              variables describe shared colors and dimensions; component variables let a theme
-              override a specific surface without changing the rest. Their defaults are supplied by
-              core. Runtime variables describe the editor's configured typography and are supplied
-              by the editor on <code>lumine-workspace</code>.
-            </p>
-            <p>
-              Set theme inputs on <code>:root</code>; a default that refers to another variable is
-              an optional derived value you can override directly. Changing an input only within a
-              descendant does not recompute a derived value inherited from <code>:root</code>.
+              Use these CSS custom properties in your stylesheets, for example{" "}
+              <code>color: var(--text-color);</code>. The tables show their current resolved values,
+              with color previews and descriptions.
             </p>
 
             {this.renderVariableGroups()}
@@ -248,11 +239,11 @@ module.exports = class StyleguideView {
               any syntax theme.
             </p>
 
-            <h2>The palette</h2>
+            <h3>The palette</h3>
             <p>
               A theme defines its palette as CSS custom properties in a <code>variables.css</code>{" "}
-              file. Values must be concrete colors, because core and package stylesheets feed them
-              to relative-color functions and to <code>color-mix()</code>:
+              file. Color values must resolve to colors usable by CSS relative-color functions and
+              <code>color-mix()</code>:
             </p>
             <div className="example">
               <div className="example-code">
@@ -271,7 +262,14 @@ module.exports = class StyleguideView {
               </div>
             </div>
 
-            <h2>One package, several themes</h2>
+            <p>
+              Set theme inputs on <code>:root</code>. Derived values that refer to other variables
+              resolve there; changing an input only within a descendant does not recompute an
+              inherited derived value. Editor typography comes from the editor's settings on
+              <code>lumine-workspace</code>.
+            </p>
+
+            <h3>One package, several themes</h3>
             <p>
               A single package can ship several selectable themes with a <code>themes</code> array
               in its <code>package.json</code>. Each entry names the theme, its type, and the
@@ -307,12 +305,31 @@ module.exports = class StyleguideView {
               in name order and later rules win.
             </p>
             <p>
-              A theme that ships no <code>variables.css</code> defines none of the properties above
-              and is warned about on the console; every <code>var()</code> then falls back to{" "}
-              <code>static/variables/base-variables.css</code>, which is one fixed light palette. A
-              theme that only means to retouch another palette should load that theme's directory
-              first in its <code>styles</code> list rather than leaving the rest undefined.
+              Keep palette declarations in <code>variables.css</code> so core can identify them; it
+              warns when this file is absent. Variables the active theme pair does not define use
+              core's fallback values. A theme that changes only part of another palette can inherit
+              its styles with a package-qualified <code>extends</code> glob. The inherited styles
+              load before the theme's own files.
             </p>
+            <div className="example">
+              <div className="example-code">
+                <CodeBlock
+                  cssClass="example-json"
+                  grammarScopeName="source.json"
+                  code={dedent`
+                    {
+                      "name": "custom-theme",
+                      "themes": [{
+                        "name": "custom-ui",
+                        "theme": "ui",
+                        "extends": "one-theme::styles/ui/**/*.css",
+                        "styles": ["styles/custom-ui"]
+                      }]
+                    }
+                  `}
+                />
+              </div>
+            </div>
           </StyleguideSection>
 
           <StyleguideSection
@@ -320,242 +337,20 @@ module.exports = class StyleguideView {
             name="icons"
             title="Icons"
           >
+            <p>Use the bundled icons beside labels, in buttons and in lists.</p>
             <p>
-              Lumine comes bundled with the Octicons. It lets you easily add icons to your packages.
-            </p>
-            <p>
-              Currently version <code>4.4.0</code> is available. In addition some older icons from
-              version <code>2.1.2</code> are still kept for backwards compatibility. Make sure to
-              use the <code>icon icon-</code> prefix in front of an icon name.
+              Add <code>icon</code> and <code>icon-&lt;name&gt;</code> to the element's classes.
+              Symbol icons describe the kinds of entries in a code outline.
             </p>
 
-            <h2>Octicons</h2>
-            {this.renderExampleHTML(dedent`
-              <span class='icon icon-alert native-key-bindings'>alert</span>
-              <span class='icon icon-alignment-align'>alignment-align</span>
-              <span class='icon icon-alignment-aligned-to'>alignment-aligned-to</span>
-              <span class='icon icon-alignment-unalign'>alignment-unalign</span>
-              <span class='icon icon-arrow-down'>arrow-down</span>
-              <span class='icon icon-arrow-left'>arrow-left</span>
-              <span class='icon icon-arrow-right'>arrow-right</span>
-              <span class='icon icon-arrow-small-down'>arrow-small-down</span>
-              <span class='icon icon-arrow-small-left'>arrow-small-left</span>
-              <span class='icon icon-arrow-small-right'>arrow-small-right</span>
-              <span class='icon icon-arrow-small-up'>arrow-small-up</span>
-              <span class='icon icon-arrow-up'>arrow-up</span>
-              <span class='icon icon-beaker'>beaker</span>
-              <span class='icon icon-beer'>beer</span>
-              <span class='icon icon-bell'>bell</span>
-              <span class='icon icon-bold'>bold</span>
-              <span class='icon icon-book'>book</span>
-              <span class='icon icon-bookmark'>bookmark</span>
-              <span class='icon icon-briefcase'>briefcase</span>
-              <span class='icon icon-broadcast'>broadcast</span>
-              <span class='icon icon-browser'>browser</span>
-              <span class='icon icon-bug'>bug</span>
-              <span class='icon icon-calendar'>calendar</span>
-              <span class='icon icon-check'>check</span>
-              <span class='icon icon-checklist'>checklist</span>
-              <span class='icon icon-chevron-down'>chevron-down</span>
-              <span class='icon icon-chevron-left'>chevron-left</span>
-              <span class='icon icon-chevron-right'>chevron-right</span>
-              <span class='icon icon-chevron-up'>chevron-up</span>
-              <span class='icon icon-circle-slash'>circle-slash</span>
-              <span class='icon icon-circuit-board'>circuit-board</span>
-              <span class='icon icon-clippy'>clippy</span>
-              <span class='icon icon-clock'>clock</span>
-              <span class='icon icon-cloud-download'>cloud-download</span>
-              <span class='icon icon-cloud-upload'>cloud-upload</span>
-              <span class='icon icon-code'>code</span>
-              <span class='icon icon-color-mode'>color-mode</span>
-              <span class='icon icon-comment'>comment</span>
-              <span class='icon icon-comment-add'>comment-add</span>
-              <span class='icon icon-comment-discussion'>comment-discussion</span>
-              <span class='icon icon-credit-card'>credit-card</span>
-              <span class='icon icon-dash'>dash</span>
-              <span class='icon icon-dashboard'>dashboard</span>
-              <span class='icon icon-database'>database</span>
-              <span class='icon icon-desktop-download'>desktop-download</span>
-              <span class='icon icon-device-camera'>device-camera</span>
-              <span class='icon icon-device-camera-video'>device-camera-video</span>
-              <span class='icon icon-device-desktop'>device-desktop</span>
-              <span class='icon icon-device-mobile'>device-mobile</span>
-              <span class='icon icon-diff'>diff</span>
-              <span class='icon icon-diff-added'>diff-added</span>
-              <span class='icon icon-diff-ignored'>diff-ignored</span>
-              <span class='icon icon-diff-modified'>diff-modified</span>
-              <span class='icon icon-diff-removed'>diff-removed</span>
-              <span class='icon icon-diff-renamed'>diff-renamed</span>
-              <span class='icon icon-ellipses'>ellipses</span>
-              <span class='icon icon-ellipsis'>ellipsis</span>
-              <span class='icon icon-eye'>eye</span>
-              <span class='icon icon-eye-unwatch'>eye-unwatch</span>
-              <span class='icon icon-eye-watch'>eye-watch</span>
-              <span class='icon icon-file'>file</span>
-              <span class='icon icon-file-add'>file-add</span>
-              <span class='icon icon-file-binary'>file-binary</span>
-              <span class='icon icon-file-code'>file-code</span>
-              <span class='icon icon-file-directory'>file-directory</span>
-              <span class='icon icon-file-directory-create'>file-directory-create</span>
-              <span class='icon icon-file-media'>file-media</span>
-              <span class='icon icon-file-pdf'>file-pdf</span>
-              <span class='icon icon-file-submodule'>file-submodule</span>
-              <span class='icon icon-file-symlink-directory'>file-symlink-directory</span>
-              <span class='icon icon-file-symlink-file'>file-symlink-file</span>
-              <span class='icon icon-file-text'>file-text</span>
-              <span class='icon icon-file-zip'>file-zip</span>
-              <span class='icon icon-flame'>flame</span>
-              <span class='icon icon-fold'>fold</span>
-              <span class='icon icon-gear'>gear</span>
-              <span class='icon icon-gift'>gift</span>
-              <span class='icon icon-gist'>gist</span>
-              <span class='icon icon-gist-fork'>gist-fork</span>
-              <span class='icon icon-gist-new'>gist-new</span>
-              <span class='icon icon-gist-private'>gist-private</span>
-              <span class='icon icon-gist-secret'>gist-secret</span>
-              <span class='icon icon-git-branch'>git-branch</span>
-              <span class='icon icon-git-branch-create'>git-branch-create</span>
-              <span class='icon icon-git-branch-delete'>git-branch-delete</span>
-              <span class='icon icon-git-commit'>git-commit</span>
-              <span class='icon icon-git-compare'>git-compare</span>
-              <span class='icon icon-git-fork-private'>git-fork-private</span>
-              <span class='icon icon-git-merge'>git-merge</span>
-              <span class='icon icon-git-pull-request'>git-pull-request</span>
-              <span class='icon icon-git-pull-request-abandoned'>git-pull-request-abandoned</span>
-              <span class='icon icon-globe'>globe</span>
-              <span class='icon icon-grabber'>grabber</span>
-              <span class='icon icon-graph'>graph</span>
-              <span class='icon icon-heart'>heart</span>
-              <span class='icon icon-history'>history</span>
-              <span class='icon icon-home'>home</span>
-              <span class='icon icon-horizontal-rule'>horizontal-rule</span>
-              <span class='icon icon-hourglass'>hourglass</span>
-              <span class='icon icon-hubot'>hubot</span>
-              <span class='icon icon-inbox'>inbox</span>
-              <span class='icon icon-info'>info</span>
-              <span class='icon icon-issue-closed'>issue-closed</span>
-              <span class='icon icon-issue-opened'>issue-opened</span>
-              <span class='icon icon-issue-reopened'>issue-reopened</span>
-              <span class='icon icon-italic'>italic</span>
-              <span class='icon icon-jersey'>jersey</span>
-              <span class='icon icon-jump-down'>jump-down</span>
-              <span class='icon icon-jump-left'>jump-left</span>
-              <span class='icon icon-jump-right'>jump-right</span>
-              <span class='icon icon-jump-up'>jump-up</span>
-              <span class='icon icon-key'>key</span>
-              <span class='icon icon-keyboard'>keyboard</span>
-              <span class='icon icon-law'>law</span>
-              <span class='icon icon-light-bulb'>light-bulb</span>
-              <span class='icon icon-link'>link</span>
-              <span class='icon icon-link-external'>link-external</span>
-              <span class='icon icon-list-ordered'>list-ordered</span>
-              <span class='icon icon-list-unordered'>list-unordered</span>
-              <span class='icon icon-location'>location</span>
-              <span class='icon icon-lock'>lock</span>
-              <span class='icon icon-log-in'>log-in</span>
-              <span class='icon icon-log-out'>log-out</span>
-              <span class='icon icon-logo-gist'>logo-gist</span>
-              <span class='icon icon-logo-github'>logo-github</span>
-              <span class='icon icon-mail'>mail</span>
-              <span class='icon icon-mail-read'>mail-read</span>
-              <span class='icon icon-mail-reply'>mail-reply</span>
-              <span class='icon icon-mark-github'>mark-github</span>
-              <span class='icon icon-markdown'>markdown</span>
-              <span class='icon icon-megaphone'>megaphone</span>
-              <span class='icon icon-mention'>mention</span>
-              <span class='icon icon-microscope'>microscope</span>
-              <span class='icon icon-milestone'>milestone</span>
-              <span class='icon icon-mirror'>mirror</span>
-              <span class='icon icon-mirror-private'>mirror-private</span>
-              <span class='icon icon-mirror-public'>mirror-public</span>
-              <span class='icon icon-mortar-board'>mortar-board</span>
-              <span class='icon icon-move-down'>move-down</span>
-              <span class='icon icon-move-left'>move-left</span>
-              <span class='icon icon-move-right'>move-right</span>
-              <span class='icon icon-move-up'>move-up</span>
-              <span class='icon icon-mute'>mute</span>
-              <span class='icon icon-no-newline'>no-newline</span>
-              <span class='icon icon-octoface'>octoface</span>
-              <span class='icon icon-organization'>organization</span>
-              <span class='icon icon-package'>package</span>
-              <span class='icon icon-paintcan'>paintcan</span>
-              <span class='icon icon-pencil'>pencil</span>
-              <span class='icon icon-person'>person</span>
-              <span class='icon icon-person-add'>person-add</span>
-              <span class='icon icon-person-follow'>person-follow</span>
-              <span class='icon icon-pin'>pin</span>
-              <span class='icon icon-playback-fast-forward'>playback-fast-forward</span>
-              <span class='icon icon-playback-pause'>playback-pause</span>
-              <span class='icon icon-playback-play'>playback-play</span>
-              <span class='icon icon-playback-rewind'>playback-rewind</span>
-              <span class='icon icon-plug'>plug</span>
-              <span class='icon icon-plus-small'>plus-small</span>
-              <span class='icon icon-plus'>plus</span>
-              <span class='icon icon-podium'>podium</span>
-              <span class='icon icon-primitive-dot'>primitive-dot</span>
-              <span class='icon icon-primitive-square'>primitive-square</span>
-              <span class='icon icon-pulse'>pulse</span>
-              <span class='icon icon-puzzle'>puzzle</span>
-              <span class='icon icon-question'>question</span>
-              <span class='icon icon-quote'>quote</span>
-              <span class='icon icon-radio-tower'>radio-tower</span>
-              <span class='icon icon-remove-close'>remove-close</span>
-              <span class='icon icon-reply'>reply</span>
-              <span class='icon icon-repo'>repo</span>
-              <span class='icon icon-repo-clone'>repo-clone</span>
-              <span class='icon icon-repo-create'>repo-create</span>
-              <span class='icon icon-repo-delete'>repo-delete</span>
-              <span class='icon icon-repo-force-push'>repo-force-push</span>
-              <span class='icon icon-repo-forked'>repo-forked</span>
-              <span class='icon icon-repo-pull'>repo-pull</span>
-              <span class='icon icon-repo-push'>repo-push</span>
-              <span class='icon icon-repo-sync'>repo-sync</span>
-              <span class='icon icon-rocket'>rocket</span>
-              <span class='icon icon-rss'>rss</span>
-              <span class='icon icon-ruby'>ruby</span>
-              <span class='icon icon-screen-full'>screen-full</span>
-              <span class='icon icon-screen-normal'>screen-normal</span>
-              <span class='icon icon-search'>search</span>
-              <span class='icon icon-search-save'>search-save</span>
-              <span class='icon icon-server'>server</span>
-              <span class='icon icon-settings'>settings</span>
-              <span class='icon icon-shield'>shield</span>
-              <span class='icon icon-sign-in'>sign-in</span>
-              <span class='icon icon-sign-out'>sign-out</span>
-              <span class='icon icon-smiley'>smiley</span>
-              <span class='icon icon-split'>split</span>
-              <span class='icon icon-squirrel'>squirrel</span>
-              <span class='icon icon-star'>star</span>
-              <span class='icon icon-star-add'>star-add</span>
-              <span class='icon icon-star-delete'>star-delete</span>
-              <span class='icon icon-steps'>steps</span>
-              <span class='icon icon-stop'>stop</span>
-              <span class='icon icon-sync'>sync</span>
-              <span class='icon icon-tag'>tag</span>
-              <span class='icon icon-tag-add'>tag-add</span>
-              <span class='icon icon-tag-remove'>tag-remove</span>
-              <span class='icon icon-tasklist'>tasklist</span>
-              <span class='icon icon-telescope'>telescope</span>
-              <span class='icon icon-terminal'>terminal</span>
-              <span class='icon icon-text-size'>text-size</span>
-              <span class='icon icon-three-bars'>three-bars</span>
-              <span class='icon icon-thumbsdown'>thumbsdown</span>
-              <span class='icon icon-thumbsup'>thumbsup</span>
-              <span class='icon icon-tools'>tools</span>
-              <span class='icon icon-trashcan'>trashcan</span>
-              <span class='icon icon-triangle-down'>triangle-down</span>
-              <span class='icon icon-triangle-left'>triangle-left</span>
-              <span class='icon icon-triangle-right'>triangle-right</span>
-              <span class='icon icon-triangle-up'>triangle-up</span>
-              <span class='icon icon-unfold'>unfold</span>
-              <span class='icon icon-unmute'>unmute</span>
-              <span class='icon icon-unverified'>unverified</span>
-              <span class='icon icon-verified'>verified</span>
-              <span class='icon icon-versions'>versions</span>
-              <span class='icon icon-watch'>watch</span>
-              <span class='icon icon-x'>x</span>
-              <span class='icon icon-zap'>zap</span>
-            `)}
+            {this.renderIconGallery(
+              "Octicons",
+              ICON_NAMES.filter((name) => !name.startsWith("type-")),
+            )}
+            {this.renderIconGallery(
+              "Symbol icons",
+              ICON_NAMES.filter((name) => name.startsWith("type-")),
+            )}
           </StyleguideSection>
 
           <StyleguideSection
@@ -565,28 +360,33 @@ module.exports = class StyleguideView {
           >
             <p>Various inputs and controls.</p>
 
-            <h2>Text Inputs</h2>
+            <h3>Text Inputs</h3>
             {this.renderExampleHTML(dedent`
-              <input class='input-text' type='text' placeholder='Text'>
-              <input class='input-search' type='search' placeholder='Search'>
-              <textarea class='input-textarea' placeholder='Text Area'></textarea>
+              <input class='input-text' type='text' placeholder='Text' aria-label='Example text'>
+              <input class='input-search' type='search' placeholder='Search' aria-label='Example search'>
+              <textarea class='input-textarea' placeholder='Text Area' aria-label='Example multiline text'></textarea>
+              <input class='input-text' type='text' value='Read-only text' readonly aria-label='Read-only example'>
+              <input class='input-text' type='text' value='Disabled text' disabled aria-label='Disabled example'>
             `)}
 
-            <h2>Controls</h2>
+            <h3>Controls</h3>
             {this.renderExampleHTML(dedent`
-              <label class='input-label'><input class='input-radio' type='radio' name='radio'> Radio</label>
-              <label class='input-label'><input class='input-radio' type='radio' name='radio' checked> Radio</label>
-              <label class='input-label'><input class='input-checkbox' type='checkbox' checked> Checkbox</label>
-              <label class='input-label'><input class='input-toggle' type='checkbox' checked> Toggle</label>
-              <input class='input-range' type='range'>
+              <form>
+                <label class='input-label'><input class='input-radio' type='radio' name='radio'> Radio</label>
+                <label class='input-label'><input class='input-radio' type='radio' name='radio' checked> Selected Radio</label>
+                <label class='input-label'><input class='input-checkbox' type='checkbox' checked> Checkbox</label>
+                <label class='input-label'><input class='input-checkbox' type='checkbox' disabled> Disabled Checkbox</label>
+                <label class='input-label'><input class='input-toggle' type='checkbox' checked> Toggle</label>
+                <input class='input-range' type='range' aria-label='Example range'>
+              </form>
             `)}
 
-            <h2>Misc</h2>
+            <h3>Misc</h3>
             {this.renderExampleHTML(dedent`
-              <input class='input-color' type='color' value='#FF85FF'>
-              <input class='input-number' type='number' min='1' max='10' placeholder='1-10'>
+              <input class='input-color' type='color' value='#FF85FF' aria-label='Example color'>
+              <input class='input-number' type='number' min='1' max='10' placeholder='1-10' aria-label='Example number'>
             `)}
-            <SelectBoxExample />
+            <SelectBoxExample onDidInitialize={this.didInitializeExample.bind(this)} />
           </StyleguideSection>
 
           <StyleguideSection
@@ -596,19 +396,21 @@ module.exports = class StyleguideView {
           >
             <p>There are a number of text classes.</p>
 
-            <h2>text-* classes</h2>
+            <h3>text-* classes</h3>
             {this.renderExampleHTML(dedent`
               <div class='text-smaller'>Smaller text</div>
               <div>Normal text</div>
               <div class='text-subtle'>Subtle text</div>
+              <div class='text-primary'>Primary text</div>
               <div class='text-highlight'>Highlighted text</div>
               <div class='text-info'>Info text</div>
               <div class='text-success'>Success text</div>
               <div class='text-warning'>Warning text</div>
               <div class='text-error'>Error text</div>
+              <div>Character <span class='character-match'>match</span></div>
             `)}
 
-            <h2>highlight-* classes</h2>
+            <h3>highlight-* classes</h3>
             {this.renderExampleHTML(dedent`
               <span class='inline-block'>Normal</span>
               <span class='inline-block highlight'>Highlighted</span>
@@ -626,39 +428,39 @@ module.exports = class StyleguideView {
           >
             <p>A few things that might be useful for general layout.</p>
 
-            <h2>.block</h2>
+            <h3>.block</h3>
             <p>Sometimes you need to separate components vertically. Say in a form.</p>
             {this.renderExampleHTML(dedent`
               <div class='block'>
                 <label>You might want to type something here.</label>
-                <lumine-text-editor mini>Something you typed...</lumine-text-editor>
+                <lumine-text-editor mini>Something you typed.</lumine-text-editor>
               </div>
               <div class='block'>
                 <label class='icon icon-file-directory'>Another field with an icon</label>
-                <lumine-text-editor mini>Something else you typed...</lumine-text-editor>
+                <lumine-text-editor mini>Something else you typed.</lumine-text-editor>
               </div>
               <div class='block'>
                 <button class='btn'>Do it</button>
               </div>
             `)}
 
-            <h2>.inline-block</h2>
+            <h3>.inline-block</h3>
             <p>Sometimes you need to separate components horizontally.</p>
             {this.renderExampleHTML(dedent`
               <div class='block'>
                 <button class='inline-block btn'>Do it</button>
                 <button class='inline-block btn'>Another</button>
-                <button class='inline-block btn'>OMG again</button>
+                <button class='inline-block btn'>More</button>
               </div>
             `)}
 
-            <h2>.inline-block-tight</h2>
+            <h3>.inline-block-tight</h3>
             <p>You might want things to be a little closer to each other.</p>
             {this.renderExampleHTML(dedent`
               <div class='block'>
                 <button class='inline-block-tight btn'>Do it</button>
                 <button class='inline-block-tight btn'>Another</button>
-                <button class='inline-block-tight btn'>OMG again</button>
+                <button class='inline-block-tight btn'>More</button>
               </div>
             `)}
           </StyleguideSection>
@@ -670,7 +472,7 @@ module.exports = class StyleguideView {
           >
             <p>Often we need git related classes to specify status.</p>
 
-            <h2>status-* classes</h2>
+            <h3>status-* classes</h3>
             {this.renderExampleHTML(dedent`
               <div class='status-ignored'>Ignored</div>
               <div class='status-added'>Added</div>
@@ -679,7 +481,7 @@ module.exports = class StyleguideView {
               <div class='status-renamed'>Renamed</div>
             `)}
 
-            <h2>status-* classes with related icons</h2>
+            <h3>status-* classes with related icons</h3>
             {this.renderExampleHTML(dedent`
               <span class='inline-block status-ignored icon icon-diff-ignored'></span>
               <span class='inline-block status-added icon icon-diff-added'></span>
@@ -691,18 +493,18 @@ module.exports = class StyleguideView {
 
           <StyleguideSection
             onDidInitialize={this.didInitializeSection.bind(this)}
-            name="site-highlight"
-            title="Site colors"
+            name="category-colors"
+            title="Category colors"
           >
-            <p>Site colors are used for collaboration. A site is another collaborator.</p>
+            <p>Category colors distinguish related items in multicolor indicators.</p>
 
-            <h2>ui-site-* classes</h2>
+            <h3>ui-site-* classes</h3>
             <p>
               These classes only set the background color, no other styles. You can also use the CSS
               custom properties <code>var(--ui-site-color-#)</code> in your packages where{" "}
               <code>#</code> is a number between 1 and 5.
             </p>
-            <p>Site colors will always be in the color progression you see here.</p>
+            <p>The active theme supplies all five colors.</p>
             {this.renderExampleHTML(dedent`
               <div class='block ui-site-1'></div>
               <div class='block ui-site-2'></div>
@@ -719,7 +521,7 @@ module.exports = class StyleguideView {
           >
             <p>Badges are typically used to show numbers.</p>
 
-            <h2>Standalone badges</h2>
+            <h3>Standalone badges</h3>
             {this.renderExampleHTML(dedent`
               <div class='block'>
                 <span class='badge'>0</span>
@@ -730,7 +532,7 @@ module.exports = class StyleguideView {
               </div>
             `)}
 
-            <h2>Colored badges</h2>
+            <h3>Colored badges</h3>
             {this.renderExampleHTML(dedent`
               <div class='block'>
                 <span class='badge badge-info'>78</span>
@@ -740,7 +542,7 @@ module.exports = class StyleguideView {
               </div>
             `)}
 
-            <h2>Badge sizes</h2>
+            <h3>Badge sizes</h3>
             <p>
               By default the <code>--ui-font-size</code> variable from themes is used. Additionally
               there are also 3 predefined sizes.
@@ -762,7 +564,7 @@ module.exports = class StyleguideView {
               <h3 class='block'>Heading <span class='badge badge-flexible'>3</span></h3>
             `)}
 
-            <h2>Icon Badges</h2>
+            <h3>Icon Badges</h3>
             <p>See the icons section to get an overview of all Octicons.</p>
             {this.renderExampleHTML(dedent`
               <div class='block'>
@@ -778,9 +580,9 @@ module.exports = class StyleguideView {
             name="buttons"
             title="Buttons"
           >
-            <p>Buttons are similar to bootstrap buttons</p>
+            <p>Use buttons for actions, with a selected or disabled state where appropriate.</p>
 
-            <h2>Standalone buttons</h2>
+            <h3>Standalone buttons</h3>
             {this.renderExampleHTML(dedent`
               <div class='block'>
                 <button class='btn'>Button</button>
@@ -794,9 +596,12 @@ module.exports = class StyleguideView {
               <div class='block'>
                 <button class='btn btn-lg'>Large Button</button>
               </div>
+              <div class='block'>
+                <button class='btn' disabled>Disabled Button</button>
+              </div>
             `)}
 
-            <h2>Colored buttons</h2>
+            <h3>Colored buttons</h3>
             {this.renderExampleHTML(dedent`
               <div class='block'>
                 <button class='btn btn-primary inline-block-tight'>Primary</button>
@@ -824,10 +629,8 @@ module.exports = class StyleguideView {
               </div>
             `)}
 
-            <h2>Icon buttons</h2>
-            <p>
-              Overview of all <a href="https://octicons.github.com/">Octicons</a>.
-            </p>
+            <h3>Icon buttons</h3>
+            <p>Add an icon before the button's label.</p>
             {this.renderExampleHTML(dedent`
               <div class='block'>
                 <button class='btn icon icon-gear inline-block-tight'>Settings</button>
@@ -836,7 +639,7 @@ module.exports = class StyleguideView {
               </div>
             `)}
 
-            <h2>Button Groups</h2>
+            <h3>Button Groups</h3>
             {this.renderExampleHTML(dedent`
               <div class='block'>
                 <div>Normal size</div>
@@ -875,7 +678,7 @@ module.exports = class StyleguideView {
               </div>
             `)}
 
-            <h2>Button Toolbars</h2>
+            <h3>Button Toolbars</h3>
             {this.renderExampleHTML(dedent`
               <div class='btn-toolbar'>
                 <div class='btn-group'>
@@ -894,7 +697,7 @@ module.exports = class StyleguideView {
               </div>
             `)}
 
-            <h2>Selected buttons</h2>
+            <h3>Selected buttons</h3>
             <p>
               Buttons can be marked selected by adding a <code>.selected</code> class. Useful for
               toggle groups.
@@ -946,15 +749,15 @@ module.exports = class StyleguideView {
               </lumine-panel>
             `)}
 
-            <h2>Inset Panel</h2>
-            <p>Use inside a panel</p>
+            <h3>Inset Panel</h3>
+            <p>Use an inset panel to group related content within a panel.</p>
             {this.renderExampleHTML(dedent`
               <lumine-panel class='padded'>
                 <div class="inset-panel padded">Some inset content</div>
               </lumine-panel>
             `)}
 
-            <h2>With a heading</h2>
+            <h3>With a heading</h3>
             {this.renderExampleHTML(dedent`
               <lumine-panel class='padded'>
                 <div class="inset-panel">
@@ -983,7 +786,7 @@ module.exports = class StyleguideView {
               </ul>
             `)}
 
-            <h2>With icons</h2>
+            <h3>With icons</h3>
             {this.renderExampleHTML(dedent`
               <ul class='list-group'>
                 <li class='list-item'>
@@ -1046,9 +849,9 @@ module.exports = class StyleguideView {
                       </ul>
                     </li>
 
-                    <li class='list-nested-item collapsed'>
+                    <li class='list-nested-item'>
                       <div class='list-item'>
-                        <span class='icon icon-file-directory'>Collapsed Nested Directory</span>
+                        <span class='icon icon-file-directory'>Another Nested Directory</span>
                       </div>
 
                       <ul class='list-tree'>
@@ -1075,9 +878,10 @@ module.exports = class StyleguideView {
                 <li class='list-item'>
                   <span class='icon icon-file-symlink-file'>.icon-file-symlink-file</span>
                 </li>
+              </ul>
             `)}
 
-            <h2>With disclosure arrows</h2>
+            <h3>With disclosure arrows</h3>
             <p>
               Add the class <code>.has-collapsable-children</code> to give the children with nested
               items disclosure arrows.
@@ -1134,7 +938,7 @@ module.exports = class StyleguideView {
               </ul>
             `)}
 
-            <h2>With disclosure arrows at only one level.</h2>
+            <h3>With disclosure arrows at only one level.</h3>
             <p>
               Add the class <code>.has-flat-children</code> to sub-<code>.list-tree</code>s to
               indicate that the children will not be collapsable.
@@ -1168,19 +972,31 @@ module.exports = class StyleguideView {
 
           <StyleguideSection
             onDidInitialize={this.didInitializeSection.bind(this)}
+            name="input-dialog"
+            title="Input Dialog"
+          >
+            <p>
+              Use an input dialog for a prompt with validation and a status line. This inline
+              example uses the same model as a modal hosted by <code>addInputDialog()</code>.
+            </p>
+            <InputDialogExample onDidInitialize={this.didInitializeExample.bind(this)} />
+          </StyleguideSection>
+
+          <StyleguideSection
+            onDidInitialize={this.didInitializeSection.bind(this)}
             name="select-list"
             title="Select List"
           >
             <p>
               This is how you will typically specify a <code>.select-list</code>.
             </p>
-            <ExampleSelectListView />
+            <ExampleSelectListView onDidInitialize={this.didInitializeExample.bind(this)} />
 
             <p>
               The list items have many options you can use, and shows you how they will display.
             </p>
 
-            <h2>Basic example with one item selected</h2>
+            <h3>Basic example with one item selected</h3>
             {this.renderExampleHTML(dedent`
               <lumine-panel class='modal'>
                 <div class='select-list'>
@@ -1193,7 +1009,7 @@ module.exports = class StyleguideView {
               </lumine-panel>
             `)}
 
-            <h2>Single line with icons</h2>
+            <h3>Single line with icons</h3>
             {this.renderExampleHTML(dedent`
               <lumine-panel class='modal'>
                 <div class='select-list'>
@@ -1217,41 +1033,34 @@ module.exports = class StyleguideView {
               </lumine-panel>
             `)}
 
-            <h2>Single line with key-bindings</h2>
+            <h3>Trailing details and separators</h3>
+            <p>
+              Place secondary details in a <code>trailing-block</code> within the primary line. A
+              separator is a non-interactive list row with <code>role='separator'</code>.
+            </p>
             {this.renderExampleHTML(dedent`
               <lumine-panel class='modal'>
                 <div class='select-list'>
                   <ol class='list-group'>
                     <li class='selected'>
-                      <div class='pull-right'>
-                        <kbd class='key-binding pull-right'>⌘⌥↓</kbd>
+                      <div class='primary-line'>
+                        <div class='trailing-block'><span class='badge'>3</span><kbd class='key-binding'>Enter</kbd></div>
+                        <span class='icon icon-file-text'>Some file</span>
                       </div>
-
-                      <span class='icon icon-file-text'>Some file</span>
                     </li>
-
+                    <li class='select-list-separator' role='separator'></li>
                     <li>
-                      <div class='pull-right key-bindings'>
-                        <kbd class='key-binding'>⌘⌥A</kbd>
-                        <kbd class='key-binding'>⌘⌥O</kbd>
+                      <div class='primary-line'>
+                        <div class='trailing-block'><span class='text-subtle'>Details</span><kbd class='key-binding'>Tab</kbd></div>
+                        <span class='icon icon-file-text'>Another file</span>
                       </div>
-
-                      <span class='icon icon-file-text'>Another file with a long name</span>
-                    </li>
-
-                    <li>
-                      <div class='pull-right'>
-                        <kbd class='key-binding'>⌘⌥↓</kbd>
-                      </div>
-
-                      <span class='icon icon-file-text'>Yet another file</span>
                     </li>
                   </ol>
                 </div>
               </lumine-panel>
             `)}
 
-            <h2>Multiple lines with no icons</h2>
+            <h3>Multiple lines with no icons</h3>
             {this.renderExampleHTML(dedent`
               <lumine-panel class='modal'>
                 <div class='select-list'>
@@ -1270,7 +1079,7 @@ module.exports = class StyleguideView {
               </lumine-panel>
             `)}
 
-            <h2>Multiple lines with icons</h2>
+            <h3>Multiple lines with icons</h3>
             {this.renderExampleHTML(dedent`
               <lumine-panel class='modal'>
                 <div class='select-list'>
@@ -1297,37 +1106,52 @@ module.exports = class StyleguideView {
               </lumine-panel>
             `)}
 
-            <h2>Using mark-active class to indicate the active item</h2>
-            <p>Use ...</p>
+            <h3>Using mark-active class to indicate the active item</h3>
+            <p>
+              A selected row is the current navigation target; an active row marks an item already
+              in use. The <code>auto-selected</code> class marks a selection suggested by the list.
+            </p>
             {this.renderExampleHTML(dedent`
               <lumine-panel class='modal'>
                 <div class='select-list'>
                   <ol class='list-group mark-active'>
                     <li class='selected'>Selected &mdash; user is arrowing through the list.</li>
                     <li class='active'>This is the active item</li>
-                    <li class='selected active'>Selected AND Active!</li>
+                    <li class='selected active'>Selected and active</li>
+                    <li class='selected auto-selected'>Suggested selection</li>
                   </ol>
                 </div>
               </lumine-panel>
             `)}
 
-            <h2>Error messages</h2>
+            <h3>Error messages</h3>
             {this.renderExampleHTML(dedent`
               <lumine-panel class='modal'>
-                <div class='select-list'>
+                <div class='select-list input-dialog'>
                   <lumine-text-editor mini>I searched for this</lumine-text-editor>
-                  <div class='error-message'>Nothing has been found!</div>
+                  <div class='message-line status-message text-error' role='alert'>No matching items.</div>
                 </div>
               </lumine-panel>
             `)}
 
-            <h2>Loading message</h2>
+            <h3>Information messages</h3>
             {this.renderExampleHTML(dedent`
               <lumine-panel class='modal'>
-                <div class='select-list'>
+                <div class='select-list input-dialog'>
+                  <lumine-text-editor mini placeholder-text='Search items'></lumine-text-editor>
+                  <div class='message-line info-message' role='status'>Choose a matching item.</div>
+                </div>
+              </lumine-panel>
+            `)}
+
+            <h3>Loading message</h3>
+            {this.renderExampleHTML(dedent`
+              <lumine-panel class='modal'>
+                <div class='select-list input-dialog'>
                   <lumine-text-editor mini>User input</lumine-text-editor>
-                  <div class='loading'>
-                    <span class='loading-message'>Chill, bro. Things are loading.</span>
+                  <div class='message-line loading' role='status'>
+                    <span class='loading loading-spinner-tiny'></span>
+                    <span class='loading-message'>Loading results…</span>
                     <span class='badge'>1234</span>
                   </div>
                 </div>
@@ -1345,7 +1169,7 @@ module.exports = class StyleguideView {
               the code for something like autocomplete.
             </p>
 
-            <h2>Basic example with one item selected</h2>
+            <h3>Basic example with one item selected</h3>
             {this.renderExampleHTML(dedent`
               <div class='select-list popover-list'>
                 <lumine-text-editor mini>'User types here..'</lumine-text-editor>
@@ -1373,30 +1197,30 @@ module.exports = class StyleguideView {
 
           <StyleguideSection
             onDidInitialize={this.didInitializeSection.bind(this)}
+            name="menus"
+            title="Menus"
+          >
+            <p>
+              Use <code>lumine.menu.showPopup()</code> for a command menu anchored to a control. The
+              popup follows the active theme and supports keyboard navigation.
+            </p>
+            <MenuExample onDidInitialize={this.didInitializeExample.bind(this)} />
+          </StyleguideSection>
+
+          <StyleguideSection
+            onDidInitialize={this.didInitializeSection.bind(this)}
             name="tooltips"
             title="Tooltips"
           >
             <p>
-              You do not create the markup directly. You call
-              <code>{`element.setTooltip(title, {command, commandElement}={})`}</code>. Passing in a{" "}
-              <code>command</code> (like <code>search-panel:show</code>) and
-              <code>commandElement</code> (context for the command) will yield a tip with a
-              keystroke.
+              Register a tooltip with <code>lumine.tooltips.add()</code> and dispose it when its
+              control is removed. Use <code>keyBindingCommand</code> and{" "}
+              <code>keyBindingTarget</code>
+              to show the control's shortcut. <code>addComposite()</code> displays several entries
+              together.
             </p>
 
-            {this.renderExampleHTML(dedent`
-              <div class='tooltip top'>
-                <div class='tooltip-arrow'></div>
-                <div class='tooltip-inner'>This is a message</div>
-              </div>
-
-              <div class='tooltip top'>
-                <div class='tooltip-arrow'></div>
-                <div class='tooltip-inner'>
-                  With a keystroke <span class="keystroke">cmd-shift-o</span>
-                </div>
-              </div>
-            `)}
+            <TooltipExample onDidInitialize={this.didInitializeExample.bind(this)} />
           </StyleguideSection>
 
           <StyleguideSection
@@ -1409,7 +1233,7 @@ module.exports = class StyleguideView {
               for an example.
             </p>
 
-            <h2>Error messages</h2>
+            <h3>Error messages</h3>
             {this.renderExampleHTML(dedent`
               <ul class='error-messages block'>
                 <li>This is an error!</li>
@@ -1417,7 +1241,7 @@ module.exports = class StyleguideView {
               </ul>
             `)}
 
-            <h2>Info messages</h2>
+            <h3>Info messages</h3>
             {this.renderExampleHTML(dedent`
               <ul class='info-messages block'>
                 <li>Info line</li>
@@ -1425,7 +1249,7 @@ module.exports = class StyleguideView {
               </ul>
             `)}
 
-            <h2>Background Messages</h2>
+            <h3>Background Messages</h3>
             <p>Subtle background messages for panes. Use for cases when there are no results.</p>
 
             {this.renderExampleHTML(dedent`
@@ -1452,7 +1276,7 @@ module.exports = class StyleguideView {
             name="progress"
             title="Loading/Progress"
           >
-            <h2>Progress Bars</h2>
+            <h3>Progress Bars</h3>
             {this.renderExampleHTML(dedent`
               <div class='block'>
                 <progress class='inline-block'></progress>
@@ -1480,7 +1304,7 @@ module.exports = class StyleguideView {
               </div>
             `)}
 
-            <h2>Loading Spinners</h2>
+            <h3>Loading Spinners</h3>
             {this.renderExampleHTML(dedent`
               <span class='loading loading-spinner-tiny inline-block'></span>
               <span class='loading loading-spinner-small inline-block'></span>
@@ -1494,14 +1318,20 @@ module.exports = class StyleguideView {
   }
 
   renderExampleHTML(html) {
-    return (
+    return <HTMLExample html={html} />;
+  }
+
+  renderIconGallery(title, names) {
+    return [
+      <h3>{title}</h3>,
       <div className="example">
-        <div className="example-rendered" innerHTML={html} />
-        <div className="example-code show-example-html">
-          <CodeBlock cssClass="example-html" grammarScopeName="text.html.basic" code={html} />
+        <div className="example-rendered icon-gallery">
+          {names.map((name) => (
+            <span className={`icon icon-${name}`}>{name}</span>
+          ))}
         </div>
-      </div>
-    );
+      </div>,
+    ];
   }
 
   renderVariableGroups() {
@@ -1519,9 +1349,9 @@ module.exports = class StyleguideView {
         groups.get(group).push(variable);
       }
       return [
-        <h2>{title}</h2>,
+        <h3>{title}</h3>,
         Array.from(groups, ([group, variables]) => [
-          <h3>{group}</h3>,
+          <h4>{group}</h4>,
           this.renderVars(variables, tableClass),
         ]),
       ];
@@ -1532,26 +1362,16 @@ module.exports = class StyleguideView {
     return (
       <div className="example">
         <div className={`example-rendered ${tableClass}`}>
-          {variables.map((variable) => {
-            const kind =
-              variable.type === "length"
-                ? variable.name.endsWith("radius")
-                  ? "is-radius"
-                  : "is-size"
-                : variable.type === "font-family"
-                  ? "is-font"
-                  : `is-${variable.type}`;
-            return (
-              <div
-                className={kind}
-                dataset={{ var: variable.name, type: variable.type, scope: variable.scope }}
-                style={`--swatch: var(--${variable.name})`}
-              >
-                <code>--{variable.name}</code>
-                <span className="is-description">{variable.description}</span>
-              </div>
-            );
-          })}
+          {variables.map((variable) => (
+            <div
+              className="variable-row"
+              dataset={{ var: variable.name, type: variable.type, scope: variable.scope }}
+              style={`--swatch: var(--${variable.name})`}
+            >
+              <code>--{variable.name}</code>
+              <span className="is-description">{variable.description}</span>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -1572,11 +1392,11 @@ module.exports = class StyleguideView {
       for (const el of container.querySelectorAll("[data-var]")) {
         const name = el.dataset.var;
         let value;
-        if (el.classList.contains("is-color")) {
+        if (el.dataset.type === "color") {
           probe.style.color = `var(--${name})`;
           value = getComputedStyle(probe).color;
           probe.style.color = "";
-        } else if (el.classList.contains("is-font")) {
+        } else if (el.dataset.type === "font-family") {
           probe.style.fontFamily = `var(--${name})`;
           value = getComputedStyle(probe).fontFamily;
           probe.style.fontFamily = "";
@@ -1609,5 +1429,11 @@ module.exports = class StyleguideView {
 
   didInitializeSection(section) {
     this.sections.push(section);
+    section.onDidExpandOrCollapseSection = () => this.scheduleResolvedValues();
+  }
+
+  didInitializeExample(example) {
+    if (this.destroyed) return example.destroy();
+    this.examples.add(example);
   }
 };

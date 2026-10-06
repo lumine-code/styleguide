@@ -4,9 +4,11 @@ A visual styleguide of the editor's UI components.
 
 ## Features
 
-- **Component reference**: shows all of the UI components used in Lumine in one place.
+- **Component reference**: shows controls, lists, panels, menus, tooltips and icons.
+- **Theme variables**: separates color swatches from other values and keeps them current with the active theme.
+- **Interactive examples**: demonstrates input validation, selection, popup menus and tooltips through the editor's shared APIs.
 - **Theme and package aid**: acts as a reference while developing themes and packages.
-- **Collapsible sections**: click section headings to expand or collapse them.
+- **Collapsible sections**: expand or collapse sections with their heading buttons, or use the controls at the top.
 
 ## Installation
 

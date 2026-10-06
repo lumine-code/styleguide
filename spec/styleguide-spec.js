@@ -2,7 +2,7 @@ const COLOR_PATTERN = /^(rgb|rgba|color|oklch|lab|lch|hsl)/;
 
 function textColorSwatch(styleGuideView) {
   return styleGuideView.element.querySelector(
-    '[data-name="variables"] .is-color[data-var="text-color"]',
+    '[data-name="variables"] [data-type="color"][data-var="text-color"]',
   );
 }
 
@@ -36,10 +36,39 @@ describe("Style Guide", () => {
     });
 
     it("closes views owned by the package on deactivation", async () => {
+      jasmine.useRealClock();
+      await waitForTextColorSwatch(styleGuideView);
+      await conditionPromise(
+        () => styleGuideView.element.querySelectorAll("lumine-text-editor").length > 5,
+        "the preview and source editors to render",
+      );
+      const editors = Array.from(
+        styleGuideView.element.querySelectorAll("lumine-text-editor"),
+        (element) => element.getModel(),
+      );
       await lumine.packages.deactivatePackage("styleguide");
 
       expect(lumine.workspace.paneForItem(styleGuideView)).toBeUndefined();
       expect(styleGuideView.destroyed).toBe(true);
+      expect(editors.every((editor) => editor.isDestroyed())).toBe(true);
+    });
+
+    it("cancels pending examples when a newly created view is destroyed immediately", async () => {
+      await lumine.workspace.paneForItem(styleGuideView).destroyItem(styleGuideView, true);
+      await styleGuideView.destroy();
+      const dialog = spyOn(lumine.workspace, "buildInputDialog").and.callThrough();
+      const list = spyOn(lumine.workspace, "buildSelectList").and.callThrough();
+      styleGuideView = lumine.packages
+        .getActivePackage("styleguide")
+        .mainModule.createStyleguideView({
+          uri: "lumine://styleguide",
+        });
+
+      await styleGuideView.destroy();
+
+      expect(dialog).not.toHaveBeenCalled();
+      expect(list).not.toHaveBeenCalled();
+      expect(styleGuideView.element.isConnected).toBe(false);
     });
 
     it("assigns a grammar to its editors even if present before the correct grammar is added", async () => {
@@ -129,8 +158,7 @@ describe("Style Guide", () => {
       try {
         styleGuideView.updateResolvedValues();
         const row = styleGuideView.element.querySelector('[data-var="editor-line-height"]');
-        expect(row.classList.contains("is-line-height")).toBe(true);
-        expect(row.classList.contains("is-size")).toBe(false);
+        expect(row.dataset.type).toBe("line-height");
         expect(row.querySelector(".is-value").textContent).toBe("30px");
         lumine.styles.addStyleSheet("lumine-workspace { --editor-line-height: normal; }", {
           sourcePath: "styleguide-line-height-spec",
@@ -213,6 +241,28 @@ describe("Style Guide", () => {
       expect(value.textContent).toMatch(COLOR_PATTERN);
     });
 
+    it("resolves variables when expanding a restored collapsed section", async () => {
+      jasmine.useRealClock();
+      await lumine.workspace.paneForItem(styleGuideView).destroyItem(styleGuideView, true);
+      styleGuideView = lumine.packages
+        .getActivePackage("styleguide")
+        .mainModule.createStyleguideView({
+          uri: "lumine://styleguide",
+          collapsedSections: ["variables"],
+        });
+      lumine.workspace.getActivePane().addItem(styleGuideView);
+      lumine.workspace.getActivePane().activateItem(styleGuideView);
+      expect(textColorSwatch(styleGuideView)).toBeNull();
+
+      await styleGuideView.expandAll();
+      const swatch = await waitForTextColorSwatch(styleGuideView);
+      await conditionPromise(
+        () => COLOR_PATTERN.test(swatch.querySelector(".is-value")?.textContent),
+        "the expanded section's values to resolve",
+      );
+      expect(swatch.querySelector(".is-value").textContent).toMatch(COLOR_PATTERN);
+    });
+
     it("waits for a disconnected view to reconnect before resolving values", async () => {
       jasmine.useRealClock();
       const swatch = await waitForTextColorSwatch(styleGuideView);
@@ -240,7 +290,7 @@ describe("Style Guide", () => {
       styleGuideView.resolvedValuesFrame = 303;
       styleGuideView.connectionObserver = { disconnect };
       const schedule = spyOn(styleGuideView, "scheduleResolvedValues").and.callThrough();
-      const heading = styleGuideView.element.querySelector(".section-heading");
+      const heading = styleGuideView.element.querySelector(".section-toggle");
 
       styleGuideView.destroy();
       styleGuideView.destroy();
