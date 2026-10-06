@@ -27,6 +27,7 @@
     --description-column: 3;
 
     .is-value {
+      min-width: 6em;
       white-space: normal;
       overflow-wrap: anywhere;
     }

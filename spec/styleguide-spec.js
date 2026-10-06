@@ -148,6 +148,20 @@ describe("Style Guide", () => {
       }
     });
 
+    it("keeps short values readable in a narrow variable table", async () => {
+      jasmine.useRealClock();
+      await waitForTextColorSwatch(styleGuideView);
+      styleGuideView.element.style.width = "400px";
+      styleGuideView.updateResolvedValues();
+
+      for (const name of ["overlay-backdrop-opacity", "ui-font-size", "use-custom-controls"]) {
+        const label = styleGuideView.element.querySelector(`[data-var="${name}"] > .is-value`);
+        const text = document.createRange();
+        text.selectNodeContents(label);
+        expect(text.getClientRects().length).withContext(name).toBe(1);
+      }
+    });
+
     it("resolves editor line height as a line height and preserves normal", async () => {
       jasmine.useRealClock();
       await waitForTextColorSwatch(styleGuideView);
