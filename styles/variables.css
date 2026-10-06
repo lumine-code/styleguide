@@ -5,7 +5,10 @@
   .is-color,
   .is-size,
   .is-radius,
-  .is-font {
+  .is-font,
+  .is-number,
+  .is-boolean,
+  .is-line-height {
     display: block;
     padding: 2px 0;
   }
@@ -21,7 +24,7 @@
 
   .is-color:before {
     width: 20%;
-    margin-right: calc(var(--component-padding) * 1.5);
+    margin-right: calc(var(--ui-spacing) * 1.5);
     border-radius: 3px;
     background-color: var(--swatch);
     box-shadow: inset 0 0 0 1px var(--base-border-color);
@@ -30,13 +33,13 @@
   .is-size:after {
     width: var(--swatch);
     height: 4px;
-    margin-left: calc(var(--component-padding) * 1.5);
+    margin-left: calc(var(--ui-spacing) * 1.5);
     background-color: var(--text-color);
   }
 
   .is-radius:after {
     width: 20px;
-    margin-left: calc(var(--component-padding) * 1.5);
+    margin-left: calc(var(--ui-spacing) * 1.5);
     border-radius: var(--swatch);
     background-color: var(--text-color);
   }
@@ -46,7 +49,7 @@
   }
 
   .is-spacer {
-    height: var(--component-padding);
+    height: var(--ui-spacing);
   }
 
   /* The resolved value injected next to each swatch by updateResolvedValues. */
@@ -54,6 +57,15 @@
     margin-left: 0.6em;
     color: var(--text-color-subtle);
     font-family: var(--editor-font-family, monospace);
+    font-size: 0.9em;
+  }
+
+  .is-metadata {
+    display: block;
+    margin-top: 0.25em;
+    margin-bottom: 0.75em;
+    color: var(--text-color-subtle);
+    font-family: var(--ui-font-family);
     font-size: 0.9em;
   }
 }

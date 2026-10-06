@@ -68,7 +68,7 @@
 
   .input-search,
   .input-textarea {
-    margin-top: var(--component-padding);
+    margin-top: var(--ui-spacing);
   }
 
   .input-label {
@@ -80,7 +80,7 @@
   .input-color,
   .input-number,
   .input-select {
-    margin: 0 var(--component-padding) 0 0 !important;
+    margin: 0 var(--ui-spacing) 0 0 !important;
   }
 
   /* Site colors --------------- */
@@ -121,7 +121,7 @@
     position: relative;
     opacity: 1;
     display: inline-block;
-    margin-right: var(--component-padding);
+    margin-right: var(--ui-spacing);
   }
 
   [data-name="error-messages"] .example-rendered {

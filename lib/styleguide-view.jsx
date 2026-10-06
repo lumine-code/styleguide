@@ -50,6 +50,7 @@ module.exports = class StyleguideView {
     this.uri = props.uri;
     this.collapsedSections = props.collapsedSections ? new Set(props.collapsedSections) : new Set();
     this.sections = [];
+    this.themeVariables = lumine.themes.getVariables();
     etch.initialize(this);
     this.destroyed = false;
     this.resolvedValuesGeneration = 0;
@@ -66,9 +67,7 @@ module.exports = class StyleguideView {
     // Fill in the resolved value of every theme variable next to its swatch,
     // and keep it current as the active theme changes or sections expand.
     this.disposables = new CompositeDisposable();
-    this.disposables.add(
-      lumine.themes.onDidChangeActiveThemes(() => this.scheduleResolvedValues()),
-    );
+    this.disposables.add(lumine.themes.onDidChangeVariables(() => this.scheduleResolvedValues()));
     this.handleClick = (event) => {
       if (event.target.closest(".section-heading")) {
         this.scheduleResolvedValues();
@@ -218,199 +217,24 @@ module.exports = class StyleguideView {
               Use these theme variables in your package's stylesheets so it matches the overall
               look. They are CSS custom properties set by the active themes &mdash; consume them
               with <code>var()</code>, for example <code>color: var(--text-color);</code> or{" "}
-              <code>background-color: var(--accent-bg-color);</code>. The value shown next to each
-              name is what the currently active theme resolves it to.
+              <code>background-color: var(--accent-background-color);</code>. The value shown next
+              to each name is what the currently active theme resolves it to.
             </p>
             <p>
-              The full manifest lives in <code>src/theme-variables.js</code>. Every name a theme is
-              expected to define is listed there, and{" "}
-              <code>static/variables/base-variables.css</code> carries a fallback for each one, so a{" "}
-              <code>var()</code> always resolves even while themes are switching.
+              This complete list comes from <code>lumine.themes.getVariables()</code>. Semantic
+              variables describe shared colors and dimensions; component variables let a theme
+              override a specific surface without changing the rest. Their defaults are supplied by
+              core. Runtime variables describe the editor's configured typography and are supplied
+              by the editor on <code>lumine-workspace</code>.
             </p>
-
-            <h2>Text colors</h2>
-            {this.renderVars("is-color", [
-              "text-color",
-              "text-color-subtle",
-              "text-color-highlight",
-              "text-color-selected",
-              "",
-              "text-color-info",
-              "text-color-success",
-              "text-color-warning",
-              "text-color-error",
-              "text-color-hint",
-            ])}
-
-            <h2>Background colors</h2>
-            {this.renderVars("is-color", [
-              "background-color-info",
-              "background-color-success",
-              "background-color-warning",
-              "background-color-error",
-              "",
-              "background-color-highlight",
-              "background-color-selected",
-              "app-background-color",
-            ])}
-
-            <h2>Base colors</h2>
-            {this.renderVars("is-color", ["base-background-color", "base-border-color"])}
-
-            <h2>Component colors</h2>
-            {this.renderVars("is-color", [
-              "pane-item-background-color",
-              "pane-item-border-color",
-              "",
-              "input-background-color",
-              "input-border-color",
-              "",
-              "tool-panel-background-color",
-              "tool-panel-border-color",
-              "inset-panel-background-color",
-              "inset-panel-border-color",
-              "panel-heading-background-color",
-              "panel-heading-border-color",
-              "overlay-background-color",
-              "overlay-border-color",
-              "",
-              "button-background-color",
-              "button-background-color-hover",
-              "button-background-color-selected",
-              "button-border-color",
-              "",
-              "tab-bar-background-color",
-              "tab-bar-border-color",
-              "tab-background-color",
-              "tab-background-color-active",
-              "tab-border-color",
-              "",
-              "tree-view-background-color",
-              "tree-view-border-color",
-              "",
-              "scrollbar-color",
-              "scrollbar-background-color",
-            ])}
-
-            <h2>Site colors</h2>
-            {this.renderVars("is-color", [
-              "ui-site-color-1",
-              "ui-site-color-2",
-              "ui-site-color-3",
-              "ui-site-color-4",
-              "ui-site-color-5",
-            ])}
-
-            <h2>Sizes</h2>
-            {this.renderVars("is-size", [
-              "disclosure-arrow-size",
-              "component-padding",
-              "component-icon-padding",
-              "component-icon-size",
-              "component-line-height",
-              "tab-height",
-              "font-size",
-              "input-font-size",
-            ])}
-
-            <h2>Misc</h2>
-            {this.renderVars("is-radius", ["component-border-radius"])}
-            {this.renderVars("is-font", ["font-family"])}
-
-            <h2>Accent colors</h2>
             <p>
-              Derived accent colors. The <code>--*-text-color</code> variants are pre-computed to
-              stay readable on their matching background.
+              The metadata below identifies each variable's type, owner, scope and default. Set
+              theme inputs on <code>:root</code>; a default that refers to another variable is an
+              optional derived value you can override directly. Changing an input only within a
+              descendant does not recompute a derived value inherited from <code>:root</code>.
             </p>
-            {this.renderVars("is-color", [
-              "accent-color",
-              "accent-text-color",
-              "accent-bg-color",
-              "accent-bg-text-color",
-              "accent-only-text-color",
-            ])}
 
-            <h2>Readable text on colored backgrounds</h2>
-            <p>
-              Use these instead of the old Less <code>contrast()</code> function &mdash; each is a
-              foreground color guaranteed to read against its matching{" "}
-              <code>--background-color-*</code>.
-            </p>
-            {this.renderVars("is-color", [
-              "text-color-on-info",
-              "text-color-on-success",
-              "text-color-on-warning",
-              "text-color-on-error",
-            ])}
-
-            <h2>Status text colors</h2>
-            {this.renderVars("is-color", [
-              "text-color-added",
-              "text-color-modified",
-              "text-color-removed",
-              "text-color-renamed",
-              "text-color-ignored",
-              "text-color-faded",
-            ])}
-
-            <h2>Background levels</h2>
-            <p>Progressively contrasting surface colors, from raised to recessed.</p>
-            {this.renderVars("is-color", [
-              "level-1-color",
-              "level-2-color",
-              "level-3-color",
-              "level-3-color-hover",
-              "level-3-color-active",
-            ])}
-
-            <h2>Editor-adjacent colors</h2>
-            {this.renderVars("is-color", [
-              "tab-text-color",
-              "tab-text-color-active",
-              "tab-text-color-editor",
-              "tab-background-color-editor",
-              "tab-inactive-status-added",
-              "tab-inactive-status-modified",
-              "",
-              "scrollbar-color-editor",
-              "scrollbar-background-color-editor",
-            ])}
-
-            <h2>Tooltip colors</h2>
-            {this.renderVars("is-color", [
-              "tooltip-background-color",
-              "tooltip-text-color",
-              "tooltip-text-key-color",
-              "tooltip-background-key-color",
-            ])}
-
-            <h2>Other component colors</h2>
-            {this.renderVars("is-color", [
-              "badge-background-color",
-              "button-text-color-selected",
-              "button-border-color-selected",
-              "checkbox-background-color",
-              "input-background-color-focus",
-              "input-selection-color",
-              "input-selection-color-focus",
-              "overlay-backdrop-color",
-              "progress-background-color",
-            ])}
-
-            <h2>Extended sizes</h2>
-            <p>
-              Relative sizes used by the bundled themes. They are <code>em</code>-based so they
-              scale with the UI font size.
-            </p>
-            {this.renderVars("is-size", [
-              "ui-size",
-              "ui-input-size",
-              "ui-padding",
-              "ui-padding-pane",
-              "ui-padding-icon",
-              "ui-line-height",
-              "ui-tab-height",
-            ])}
+            {this.renderVariableGroups()}
           </StyleguideSection>
 
           <StyleguideSection
@@ -440,7 +264,7 @@ module.exports = class StyleguideView {
                     :root {
                       --text-color: hsl(220, 13%, 66%);
                       --base-background-color: hsl(220, 13%, 18%);
-                      --accent-color: hsl(220, 100%, 66%);
+                      --accent-indicator-color: hsl(220, 100%, 66%);
                       /* ...the rest of the contract... */
                     }
                   `}
@@ -477,11 +301,11 @@ module.exports = class StyleguideView {
             <p>
               A single-theme package instead uses a top-level <code>"theme": "ui"</code> (or{" "}
               <code>"syntax"</code>) and puts its stylesheets in <code>styles/</code>. Every
-              stylesheet of a syntax theme is scoped to the editor by the theme's type, so its file
-              names are free — split the rules across as many as reads well, and number them, since
-              they load in name order and later rules win. An ordinary package opts a single
-              stylesheet into that same editor scope by naming it{" "}
-              <code>*.lumine-text-editor.css</code>.
+              stylesheet of a syntax theme receives editor-context metadata, but that metadata does
+              not rewrite its selectors. Define palette variables on <code>:root</code> and scope
+              highlighting rules explicitly under <code>lumine-text-editor</code>. File names are
+              free — split the rules across as many as reads well, and number them, since they load
+              in name order and later rules win.
             </p>
             <p>
               A theme that ships no <code>variables.css</code> defines none of the properties above
@@ -919,7 +743,7 @@ module.exports = class StyleguideView {
 
             <h2>Badge sizes</h2>
             <p>
-              By default the <code>--font-size</code> variable from themes is used. Additionally
+              By default the <code>--ui-font-size</code> variable from themes is used. Additionally
               there are also 3 predefined sizes.
             </p>
             {this.renderExampleHTML(dedent`
@@ -1681,21 +1505,47 @@ module.exports = class StyleguideView {
     );
   }
 
-  // Render a row of variable swatches. `kind` is the visualization class
-  // (`is-color`, `is-size`, `is-radius`, `is-font`); an empty name renders a
-  // spacer. Each swatch draws itself from `--swatch` and carries its variable
-  // name in `data-var` so updateResolvedValues can label it.
-  renderVars(kind, names) {
-    const html = names
-      .map((name) =>
-        name === ""
-          ? `<div class="${kind} is-spacer"></div>`
-          : `<div class="${kind}" data-var="${name}" style="--swatch: var(--${name})">--${name}</div>`,
-      )
-      .join("\n");
+  renderVariableGroups() {
+    const groups = new Map();
+    for (const variable of this.themeVariables) {
+      if (!groups.has(variable.group)) groups.set(variable.group, []);
+      groups.get(variable.group).push(variable);
+    }
+    return Array.from(groups, ([group, variables]) => [
+      <h2>{group}</h2>,
+      this.renderVars(variables),
+    ]);
+  }
+
+  renderVars(variables) {
     return (
       <div className="example">
-        <div className="example-rendered" innerHTML={html} />
+        <div className="example-rendered">
+          {variables.map((variable) => {
+            const kind =
+              variable.type === "length"
+                ? variable.name.endsWith("radius")
+                  ? "is-radius"
+                  : "is-size"
+                : variable.type === "font-family"
+                  ? "is-font"
+                  : `is-${variable.type}`;
+            return (
+              <div
+                className={kind}
+                dataset={{ var: variable.name, type: variable.type, scope: variable.scope }}
+                style={`--swatch: var(--${variable.name})`}
+              >
+                <code>--{variable.name}</code>
+                <span className="is-metadata">
+                  {variable.description} {variable.type}; {variable.role}; {variable.owner};{" "}
+                  {variable.scope}. Default:{" "}
+                  <code>{variable.default ?? "editor configuration"}</code>.
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   }
@@ -1723,17 +1573,25 @@ module.exports = class StyleguideView {
           probe.style.fontFamily = `var(--${name})`;
           value = getComputedStyle(probe).fontFamily;
           probe.style.fontFamily = "";
-        } else {
+        } else if (el.dataset.type === "length") {
           probe.style.width = `var(--${name})`;
           value = getComputedStyle(probe).width;
           probe.style.width = "";
+        } else if (el.dataset.type === "line-height") {
+          probe.style.fontSize = "var(--editor-font-size)";
+          probe.style.lineHeight = `var(--${name})`;
+          value = getComputedStyle(probe).lineHeight;
+          probe.style.lineHeight = "";
+          probe.style.fontSize = "";
+        } else {
+          value = getComputedStyle(probe).getPropertyValue(`--${name}`).trim();
         }
 
         let label = el.querySelector(":scope > .is-value");
         if (!label) {
           label = document.createElement("span");
           label.className = "is-value";
-          el.appendChild(label);
+          el.insertBefore(label, el.querySelector(":scope > .is-metadata"));
         }
         label.textContent = value;
       }

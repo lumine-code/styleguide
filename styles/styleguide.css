@@ -5,7 +5,7 @@
 
 .styleguide {
   /* Package-local values (converted from Less variables) */
-  --styleguide-spacing: calc(var(--component-padding) * 1.5);
+  --styleguide-spacing: calc(var(--ui-spacing) * 1.5);
 
   position: relative;
   display: flex;
@@ -18,16 +18,16 @@
   lumine-panel.modal::after {
     /* Keep the modal backdrop inside the padded styleguide example. */
     position: absolute;
-    left: calc(-1 * var(--ui-padding));
-    right: calc(-1 * var(--ui-padding));
-    bottom: calc(-1 * var(--ui-padding));
+    left: calc(-1 * var(--ui-panel-padding));
+    right: calc(-1 * var(--ui-panel-padding));
+    bottom: calc(-1 * var(--ui-panel-padding));
   }
 }
 
 .styleguide-controls {
   position: absolute;
-  right: var(--component-padding);
-  top: var(--component-padding);
+  right: var(--ui-spacing);
+  top: var(--ui-spacing);
   z-index: 100;
 }
 
@@ -108,21 +108,21 @@
 .styleguide .example {
   display: flex;
   flex-wrap: wrap;
-  border-radius: var(--component-border-radius);
-  padding: calc(var(--component-padding) / 2);
+  border-radius: var(--ui-border-radius);
+  padding: calc(var(--ui-spacing) / 2);
 
   .example-rendered,
   .example-code {
     position: relative;
     flex: 1 1 300px;
     min-width: 0;
-    margin: calc(var(--component-padding) / 2);
-    border-radius: var(--component-border-radius);
+    margin: calc(var(--ui-spacing) / 2);
+    border-radius: var(--ui-border-radius);
     border: 1px solid var(--tool-panel-border-color);
   }
 
   .example-rendered {
-    padding: var(--component-padding);
+    padding: var(--ui-spacing);
     background: var(--base-background-color); /* @example-background */
     overflow: hidden;
   }

@@ -64,20 +64,117 @@ describe("Style Guide", () => {
       expect(te.getGrammar()?.scopeName).toBe("text.html.basic");
     });
 
-    it("documents both the classic and extended theme variables", async () => {
+    it("documents every public variable and its contract metadata", async () => {
       jasmine.useRealClock();
       await waitForTextColorSwatch(styleGuideView);
       const variableNames = Array.from(
         styleGuideView.element.querySelectorAll('[data-name="variables"] [data-var]'),
       ).map((el) => el.dataset.var);
 
-      // Classic contract
-      expect(variableNames).toContain("text-color");
-      expect(variableNames).toContain("component-padding");
-      // Extended contract added by the CSS custom-property migration
-      expect(variableNames).toContain("accent-bg-color");
-      expect(variableNames).toContain("text-color-on-info");
-      expect(variableNames).toContain("level-1-color");
+      const definitions = lumine.themes.getVariables();
+      expect(variableNames.slice().sort()).toEqual(definitions.map(({ name }) => name).sort());
+      expect(new Set(variableNames).size).toBe(definitions.length);
+      for (const definition of definitions) {
+        const row = styleGuideView.element.querySelector(`[data-var="${definition.name}"]`);
+        expect(row.dataset.type).toBe(definition.type);
+        expect(row.dataset.scope).toBe(definition.scope);
+        expect(row.querySelector(".is-metadata").textContent).toContain(definition.description);
+      }
+    });
+
+    it("resolves each value according to its type, including unitless values", async () => {
+      jasmine.useRealClock();
+      await waitForTextColorSwatch(styleGuideView);
+      const stylesheet = lumine.styles.addStyleSheet(
+        `:root {
+          --text-color: rgb(12, 34, 56);
+          --ui-font-size: 17px;
+          --ui-border-radius: 7px;
+          --ui-font-family: "Contract Font";
+          --prose-line-height: 1.75;
+          --overlay-backdrop-opacity: 0.42;
+          --use-custom-controls: false;
+        }`,
+        { priority: 3 },
+      );
+      try {
+        styleGuideView.updateResolvedValues();
+        const value = (name) =>
+          styleGuideView.element.querySelector(`[data-var="${name}"] > .is-value`).textContent;
+        expect(value("text-color")).toBe("rgb(12, 34, 56)");
+        expect(value("ui-font-size")).toBe("17px");
+        expect(value("ui-border-radius")).toBe("7px");
+        expect(value("ui-font-family")).toContain("Contract Font");
+        expect(value("prose-line-height")).toBe("1.75");
+        expect(value("overlay-backdrop-opacity")).toBe("0.42");
+        expect(value("use-custom-controls")).toBe("false");
+      } finally {
+        stylesheet.dispose();
+      }
+    });
+
+    it("resolves editor line height as a line height and preserves normal", async () => {
+      jasmine.useRealClock();
+      await waitForTextColorSwatch(styleGuideView);
+      const stylesheet = lumine.styles.addStyleSheet(
+        "lumine-workspace { --editor-font-size: 20px; --editor-line-height: 150%; }",
+        { sourcePath: "styleguide-line-height-spec", priority: 3 },
+      );
+      try {
+        styleGuideView.updateResolvedValues();
+        const row = styleGuideView.element.querySelector('[data-var="editor-line-height"]');
+        expect(row.classList.contains("is-line-height")).toBe(true);
+        expect(row.classList.contains("is-size")).toBe(false);
+        expect(row.querySelector(".is-value").textContent).toBe("30px");
+        lumine.styles.addStyleSheet("lumine-workspace { --editor-line-height: normal; }", {
+          sourcePath: "styleguide-line-height-spec",
+          priority: 3,
+        });
+        styleGuideView.updateResolvedValues();
+        expect(row.querySelector(".is-value").textContent).toBe("normal");
+      } finally {
+        stylesheet.dispose();
+      }
+    });
+
+    it("refreshes accent labels when the system accent changes and is removed", async () => {
+      jasmine.useRealClock();
+      await waitForTextColorSwatch(styleGuideView);
+      styleGuideView.updateResolvedValues();
+      const label = styleGuideView.element.querySelector(
+        '[data-var="accent-indicator-color"] > .is-value',
+      );
+      const originalValue = label.textContent;
+      const originalSource = lumine.config.get("theme.accentSource");
+      const originalAccent = lumine.themes.systemAccentColor;
+      spyOn(lumine.themes.applicationDelegate, "invokeApp").and.returnValue(
+        Promise.resolve("#123456"),
+      );
+      const themeSwitch = jasmine.createSpy("theme switch");
+      const subscription = lumine.themes.onDidChangeActiveThemes(themeSwitch);
+      try {
+        lumine.config.set("theme.accentSource", "system");
+        await lumine.themes.refreshSystemAccentColor();
+        await conditionPromise(
+          () => label.textContent === "rgb(18, 52, 86)",
+          "initial accent label",
+        );
+        lumine.themes.systemAccentColor = "#654321";
+        lumine.themes.applyAccentColor();
+        await conditionPromise(
+          () => label.textContent === "rgb(101, 67, 33)",
+          "updated accent label",
+        );
+        lumine.config.set("theme.accentSource", "theme");
+        lumine.themes.applyAccentColor();
+        await conditionPromise(() => label.textContent === originalValue, "theme accent restored");
+        expect(themeSwitch).not.toHaveBeenCalled();
+      } finally {
+        subscription.dispose();
+        lumine.config.set("theme.accentSource", originalSource);
+        lumine.themes.systemAccentColor = originalAccent;
+        lumine.themes.applyAccentColor();
+      }
     });
 
     it("does not auto-select an item in the showcase select list", async () => {
