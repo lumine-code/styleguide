@@ -2,6 +2,8 @@
 
 A visual styleguide of the editor's UI components.
 
+Fork of [pulsar-edit/pulsar](https://github.com/pulsar-edit/pulsar) (`packages/styleguide`).
+
 ## Features
 
 - **Component reference**: shows controls, lists, panels, menus, tooltips and icons.
