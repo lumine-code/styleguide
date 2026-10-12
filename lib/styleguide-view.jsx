@@ -8,6 +8,7 @@ const StyleguideSection = require("./styleguide-section");
 const ExampleSelectListView = require("./example-select-list-view");
 const ICON_NAMES = require("./icon-names.json");
 const { InputDialogExample, MenuExample, TooltipExample } = require("./interactive-examples");
+const restoreCopiedScroll = require("./restore-copied-scroll");
 
 class SelectBoxExample {
   constructor({ onDidInitialize } = {}) {
@@ -83,6 +84,7 @@ module.exports = class StyleguideView {
   destroy() {
     if (this.destroyed) return this.destructionPromise;
     this.destroyed = true;
+    this.pendingCopyScrollRestore?.dispose();
     this.cancelResolvedValuesSchedule();
     this.disposables?.dispose();
     const destructions = this.sections.map((section) => section.destroy());
@@ -177,12 +179,11 @@ module.exports = class StyleguideView {
         .filter((section) => section.collapsed)
         .map((section) => section.name),
     });
-    const scrollTop = this.element.scrollTop;
-    const initialScrollTop = copy.element.scrollTop;
-    requestAnimationFrame(() => {
-      if (!copy.destroyed && copy.element.scrollTop === initialScrollTop)
-        copy.element.scrollTop = scrollTop;
-    });
+    const scrollTop = restoreCopiedScroll.capture(
+      this,
+      this.element.querySelector(".styleguide-sections"),
+    );
+    restoreCopiedScroll(copy, scrollTop, copy.element.querySelector(".styleguide-sections"));
     return copy;
   }
 
