@@ -1,79 +1,56 @@
-describe("styleguide copied pane item lifecycle", () => {
-  let uri;
+describe("styleguide singleton pane operations", () => {
+  let source;
 
   beforeEach(async () => {
     lumine.config.set("about.showOnStartup", false);
     await lumine.packages.activatePackage("styleguide");
     jasmine.attachToDOM(lumine.workspace.getElement());
-    uri = "lumine://styleguide";
+    source = await lumine.workspace.open("lumine://styleguide");
   });
 
   afterEach(async () => {
     await lumine.packages.deactivatePackage("styleguide");
   });
 
-  it("keeps a copied view functional after its source closes and retires every copy on unload", async () => {
-    const source = await lumine.workspace.open(uri);
-    const sourcePane = lumine.workspace.paneForItem(source);
-    const first = await lumine.workspace.copyPaneItem(source, { splitDirection: "right" });
-    expect(first.item).not.toBe(source);
-    expect(lumine.views.getView(first.item)).not.toBe(lumine.views.getView(source));
-    await sourcePane.destroyItem(source, true);
-    const second = await lumine.workspace.copyPaneItem(first.item, { splitDirection: "down" });
-    expect(second.item).not.toBe(first.item);
-    expect(lumine.views.getView(second.item)).not.toBe(lumine.views.getView(first.item));
-    expect(lumine.workspace.paneForItem(first.item)).toBe(first.pane);
+  it("silently skips copy and split-copy while preserving layout, pending state and focus", async () => {
+    const pane = lumine.workspace.paneForItem(source);
+    pane.setPendingItem(source);
+    const panes = lumine.workspace.getPanes();
+    const warnings = spyOn(lumine.notifications, "addWarning");
+    const errors = spyOn(lumine.notifications, "addError");
+    expect(source.canCopy()).toBe(false);
+    expect(await lumine.workspace.copyPaneItem(source, { splitDirection: "right" })).toBeNull();
+    for (const direction of ["up", "down", "left", "right"]) {
+      await lumine.commands.dispatch(source.element, "pane:copy-active-item-" + direction);
+      await lumine.commands.dispatch(
+        source.element,
+        "pane:split-" + direction + "-and-copy-active-item",
+      );
+    }
+    expect(lumine.workspace.getPanes()).toEqual(panes);
+    expect(lumine.workspace.getActivePane()).toBe(pane);
+    expect(pane.getPendingItem()).toBe(source);
+    expect(warnings).not.toHaveBeenCalled();
+    expect(errors).not.toHaveBeenCalled();
+  });
+
+  it("moves the same live view, reopens its existing resource and releases its key on unload", async () => {
+    const root = lumine.views.getView(source);
+    const moved = await lumine.workspace.movePaneItem(source, { splitDirection: "right" });
+    expect(moved.item).toBe(source);
+    expect(lumine.views.getView(source)).toBe(root);
+    const count = lumine.workspace.getPanes().length;
+    const reopened = await lumine.workspace.open("lumine://styleguide", { split: "down" });
+    expect(reopened).toBe(source);
+    expect(lumine.workspace.getPanes().length).toBe(count);
+    const key = source.getSingletonKey();
     await lumine.packages.deactivatePackage("styleguide");
-    expect(lumine.workspace.getPaneItems().filter((item) => item.getURI?.() === uri)).toEqual([]);
-  });
-
-  it("keeps a later request for the top of a copy ahead of its scheduled source viewport", async () => {
-    const source = await lumine.workspace.open(uri);
-    source.element.style.height = "200px";
-    source.element.style.flex = "none";
-    const sourceScroller = source.element.querySelector(".styleguide-sections");
-    sourceScroller.scrollTop = 400;
-    expect(sourceScroller.scrollTop).toBeGreaterThan(0);
-    const scheduled = [];
-    const frames = spyOn(window, "requestAnimationFrame").and.callFake((callback) => {
-      scheduled.push(callback);
-      return scheduled.length;
-    });
-    try {
-      const copy = source.copy();
-      lumine.workspace.paneForItem(source).splitRight({ items: [copy] });
-      await lumine.commands.dispatch(copy.element, "core:move-to-top");
-      const copyScroller = copy.element.querySelector(".styleguide-sections");
-      copyScroller.scrollTop = 0;
-      for (const callback of scheduled.splice(0)) callback(performance.now());
-      expect(copyScroller.scrollTop).toBe(0);
-    } finally {
-      frames.and.callThrough();
-    }
-  });
-
-  it("preserves the displayed viewport when a copy is copied again before its first paint", async () => {
-    const source = await lumine.workspace.open(uri);
-    source.element.style.height = "200px";
-    source.element.style.flex = "none";
-    const sourceScroller = source.element.querySelector(".styleguide-sections");
-    sourceScroller.scrollTop = 400;
-    const scrollTop = sourceScroller.scrollTop;
-    expect(scrollTop).toBeGreaterThan(0);
-    const scheduled = [];
-    const frames = spyOn(window, "requestAnimationFrame").and.callFake((callback) => {
-      scheduled.push(callback);
-      return 70000 + scheduled.length;
-    });
-    try {
-      const first = source.copy();
-      const firstPane = lumine.workspace.paneForItem(source).splitRight({ items: [first] });
-      const second = first.copy();
-      firstPane.splitDown({ items: [second] });
-      for (const callback of scheduled.splice(0)) callback(performance.now());
-      expect(second.element.querySelector(".styleguide-sections").scrollTop).toBe(scrollTop);
-    } finally {
-      frames.and.callThrough();
-    }
+    expect(
+      lumine.workspace.getPaneItems().filter((item) => item.getSingletonKey?.() === key),
+    ).toEqual([]);
+    await lumine.packages.activatePackage("styleguide");
+    const replacement = await lumine.workspace.open("lumine://styleguide");
+    expect(replacement).not.toBe(source);
+    expect(replacement.getSingletonKey()).toBe(key);
   });
 });
