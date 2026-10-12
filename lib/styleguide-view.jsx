@@ -169,6 +169,23 @@ module.exports = class StyleguideView {
     };
   }
 
+  copy({ signal } = {}) {
+    signal?.throwIfAborted();
+    const copy = new StyleguideView({
+      uri: this.uri,
+      collapsedSections: this.sections
+        .filter((section) => section.collapsed)
+        .map((section) => section.name),
+    });
+    const scrollTop = this.element.scrollTop;
+    const initialScrollTop = copy.element.scrollTop;
+    requestAnimationFrame(() => {
+      if (!copy.destroyed && copy.element.scrollTop === initialScrollTop)
+        copy.element.scrollTop = scrollTop;
+    });
+    return copy;
+  }
+
   update() {
     return Promise.resolve();
   }
