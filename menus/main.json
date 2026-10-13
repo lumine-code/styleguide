@@ -8,7 +8,9 @@
           "submenu": [
             {
               "label": "Styleguide",
-              "command": "styleguide:show"
+              "command": "styleguide:show",
+              "group": "inspection",
+              "order": 10
             }
           ]
         }
