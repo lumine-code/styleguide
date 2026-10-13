@@ -12,6 +12,8 @@ Fork of [pulsar-edit/pulsar](https://github.com/pulsar-edit/pulsar) (`packages/s
 - **Theme and package aid**: acts as a reference while developing themes and packages.
 - **Collapsible sections**: expand or collapse sections with their heading buttons, or use the controls at the top.
 
+![The styleguide view in Lumine.](.github/demo.png)
+
 ## Installation
 
 To install `styleguide` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/styleguide`.

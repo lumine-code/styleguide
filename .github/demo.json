@@ -1,0 +1,16 @@
+{
+  "title": "styleguide",
+  "description": "The styleguide view in Lumine.",
+  "recordedOn": "2026-10-13",
+  "sourceRevision": "d761a279a2317941c3a627763b1b68d3bbde5991",
+  "mode": "normal",
+  "fontSettings": "default",
+  "images": [
+    {
+      "file": "demo.png",
+      "label": "The styleguide view in Lumine.",
+      "width": 1100,
+      "height": 760
+    }
+  ]
+}
