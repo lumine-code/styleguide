@@ -98,7 +98,8 @@ module.exports = class StyleguideView {
     this.resolvedValuesGeneration++;
     const frame = this.resolvedValuesFrame;
     this.resolvedValuesFrame = null;
-    if (frame != null) cancelAnimationFrame(frame);
+    if (frame != null) this.resolvedValuesFrameWindow.cancelAnimationFrame(frame);
+    this.resolvedValuesFrameWindow = null;
     this.disconnectConnectionObserver();
   }
 
@@ -121,7 +122,8 @@ module.exports = class StyleguideView {
     }
 
     let frame;
-    frame = requestAnimationFrame(() => {
+    this.resolvedValuesFrameWindow = this.element.ownerDocument.defaultView;
+    frame = this.resolvedValuesFrameWindow.requestAnimationFrame(() => {
       if (
         this.destroyed ||
         generation !== this.resolvedValuesGeneration ||
@@ -130,6 +132,7 @@ module.exports = class StyleguideView {
         return;
       }
       this.resolvedValuesFrame = null;
+      this.resolvedValuesFrameWindow = null;
       if (!this.element.isConnected) {
         this.scheduleResolvedValuesForGeneration(generation);
         return;
@@ -155,7 +158,8 @@ module.exports = class StyleguideView {
         this.scheduleResolvedValuesForGeneration(generation);
       }
     };
-    observer = new MutationObserver(finish);
+    const document = this.element.ownerDocument;
+    observer = new document.defaultView.MutationObserver(finish);
     this.connectionObserver = observer;
     observer.observe(document, { childList: true, subtree: true });
     finish();
@@ -167,6 +171,10 @@ module.exports = class StyleguideView {
       collapsedSections: this.sections.filter((s) => s.collapsed).map((s) => s.name),
       uri: this.uri,
     };
+  }
+
+  didAttachToWindow() {
+    this.scheduleResolvedValues();
   }
 
   canCopy() {

@@ -302,6 +302,7 @@ describe("Style Guide", () => {
       const cancel = spyOn(window, "cancelAnimationFrame");
       const disconnect = jasmine.createSpy("disconnect");
       styleGuideView.resolvedValuesFrame = 303;
+      styleGuideView.resolvedValuesFrameWindow = window;
       styleGuideView.connectionObserver = { disconnect };
       const schedule = spyOn(styleGuideView, "scheduleResolvedValues").and.callThrough();
       const heading = styleGuideView.element.querySelector(".section-toggle");
