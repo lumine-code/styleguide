@@ -1,18 +1,13 @@
 {
   "menu": [
     {
-      "label": "View",
+      "label": "Developer",
       "submenu": [
         {
-          "label": "Developer",
-          "submenu": [
-            {
-              "label": "Styleguide",
-              "command": "styleguide:show",
-              "group": "inspection",
-              "order": 10
-            }
-          ]
+          "label": "Styleguide",
+          "command": "styleguide:show",
+          "group": "inspection",
+          "order": 10
         }
       ]
     },
