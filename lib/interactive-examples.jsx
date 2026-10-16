@@ -125,6 +125,7 @@ class MenuExample {
         'styleguide:choose-menu-example': {
           description: 'Choose a menu example.',
           hiddenInCommandPalette: true,
+          isAvailable: ({ detail }) => typeof detail?.label === 'string',
           didDispatch: ({ detail }) => {
             status.textContent = 'Selected: ' + detail.label + '.'
           }
@@ -166,6 +167,7 @@ class MenuExample {
         "styleguide:choose-menu-example": {
           description: "Choose a menu example.",
           hiddenInCommandPalette: true,
+          isAvailable: ({ detail }) => typeof detail?.label === "string",
           didDispatch: ({ detail }) => this.setStatus(`Selected: ${detail.label}.`),
         },
         "styleguide:toggle-menu-example": {
