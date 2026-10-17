@@ -1,9 +1,9 @@
 {
   "title": "styleguide",
   "description": "The styleguide view in Lumine.",
-  "recordedOn": "2026-10-14",
-  "sourceRevision": "4ae745a4f7ef29b6349c8b7133b28e79041b76f9",
-  "themeSourceRevision": "14a69683b0e3238e2bc128fbfae3866c1e4ee9c6",
+  "recordedOn": "2026-10-17",
+  "sourceRevision": "d74d493406e02d1b399fc1132daadd156f78d050",
+  "themeSourceRevision": "80e8864a2e9a891ef1f911d78ab8f03fb3911f58",
   "mode": "normal",
   "fontSettings": "default",
   "scenario": "demo.js",
@@ -11,8 +11,8 @@
   "environment": {
     "platform": "win32",
     "arch": "x64",
-    "electron": "44.7.0",
-    "chrome": "152.0.7977.130",
+    "electron": "44.9.0",
+    "chrome": "152.0.7977.167",
     "devicePixelRatio": 1,
     "locale": "en-GB",
     "fontFamily": "Fira Code, Menlo, DejaVu Sans Mono, Consolas, monospace",
@@ -21,26 +21,27 @@
   },
   "viewport": { "width": 1100, "height": 760 },
   "cornerRadius": 10,
+  "privacy": { "version": 1, "location": "neutral", "textChecked": true },
   "sources": {
     "editor": {
-      "revision": "385bd1b3ac2db600f1c7e077474d9da4d6deebc4",
-      "dirty": true,
-      "workingTreeHash": "08ba420fdc2c3d9a27ae9973c15f1efb7ccd57a582986958a8f1049bc8f34d60"
+      "revision": "200598247a0ae40f5e0bf1998b44f7fe77bc0aa7",
+      "dirty": false,
+      "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "package": {
-      "revision": "4ae745a4f7ef29b6349c8b7133b28e79041b76f9",
-      "dirty": true,
-      "workingTreeHash": "91b087bfed7eaf5109e150710ad7874a8878ed2356fd717d7e0723041e2164a8"
+      "revision": "d74d493406e02d1b399fc1132daadd156f78d050",
+      "dirty": false,
+      "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "styleguide": {
-      "revision": "4ae745a4f7ef29b6349c8b7133b28e79041b76f9",
-      "dirty": true,
-      "workingTreeHash": "91b087bfed7eaf5109e150710ad7874a8878ed2356fd717d7e0723041e2164a8"
+      "revision": "d74d493406e02d1b399fc1132daadd156f78d050",
+      "dirty": false,
+      "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "one-theme": {
-      "revision": "14a69683b0e3238e2bc128fbfae3866c1e4ee9c6",
-      "dirty": true,
-      "workingTreeHash": "50ec2f83a6347dd8113870992ec4eb2be4014f3d9e12213c2f51b543f1eca793"
+      "revision": "80e8864a2e9a891ef1f911d78ab8f03fb3911f58",
+      "dirty": false,
+      "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
   },
   "fixtures": [
@@ -55,7 +56,7 @@
       "label": "The styleguide view in Lumine.",
       "width": 1100,
       "height": 760,
-      "sha256": "edf02863592cf2f2d023e5447a8e46f7633d59b7574a8066a0ffaa5678526da8"
+      "sha256": "907fed52423fdabe572cf7e6a3987c1acfb1f8e8be7932847e2789a91c13d57a"
     }
   ]
 }
