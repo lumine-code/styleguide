@@ -79,6 +79,7 @@ describe("Styleguide interactive examples", () => {
 
     expect(example.selectList.getStatus()).toEqual({ type: "info", message: "Selected: two." });
     expect(example.element.querySelector(".status-message").textContent).toBe("Selected: two.");
+    expect(example.selectList.supportsKeepOpen()).toBe(false);
   });
 
   it("retains a confirmation when query typography changes without changing its text", async () => {

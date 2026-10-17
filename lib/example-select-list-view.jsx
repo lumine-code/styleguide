@@ -8,6 +8,7 @@ module.exports = class ExampleSelectListView {
     this.destroyed = false;
     this.jsExampleCode = dedent`
     const selectList = lumine.workspace.buildSelectList({
+      supportsKeepOpen: false,
       items: ['one', 'two', 'three'],
       selection: { allowEmpty: true, initial: { mode: 'none' } },
       infoMessage: 'Select a row, then press Enter to confirm.',
@@ -38,6 +39,8 @@ module.exports = class ExampleSelectListView {
     // hands back an instance, and etch needs a constructor in tag position. Its
     // element is adopted into the tree below instead.
     this.selectList = lumine.workspace.buildSelectList({
+      // This embedded showcase always stays open after confirming an example.
+      supportsKeepOpen: false,
       items: ["one", "two", "three"],
       // This is a static showcase, not a live picker in a fixed modal.
       // Leaving the selection empty avoids scrolling the whole styleguide to
