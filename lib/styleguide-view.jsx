@@ -1203,10 +1203,34 @@ module.exports = class StyleguideView {
             name="modal-panel"
             title="Modals"
           >
-            <p>Modals are like dialog boxes.</p>
+            <p>
+              Use <code>addInputDialog()</code> for one text value. Forms with several fields use
+              <code>dialog-form</code> inside a modal with <code>dialog-panel</code>. The shared
+              layout supplies field spacing, status and actions. Use mini editors for text and place
+              Cancel before the primary action on every platform.
+            </p>
             {this.renderExampleHTML(dedent`
-              <lumine-panel class='modal'>
-                <div>Some content</div>
+              <lumine-panel class='modal dialog-panel'>
+                <div class='dialog-form' role='dialog' aria-label='Create item'>
+                  <header class='dialog-header'>
+                    <h1 class='dialog-title'>Create item</h1>
+                  </header>
+                  <div class='dialog-body'>
+                    <div class='dialog-field'>
+                      <span class='dialog-label'>Name</span>
+                      <lumine-text-editor mini aria-label='Name' placeholder-text='Example name'></lumine-text-editor>
+                    </div>
+                    <div class='dialog-field'>
+                      <span class='dialog-label'>Location</span>
+                      <lumine-text-editor mini aria-label='Location' placeholder-text='Project directory'></lumine-text-editor>
+                    </div>
+                  </div>
+                  <p class='dialog-description'>Choose a name and a location for the new item.</p>
+                  <footer class='dialog-actions'>
+                    <button class='btn' type='button'>Cancel</button>
+                    <button class='btn btn-primary' type='button'>Create</button>
+                  </footer>
+                </div>
               </lumine-panel>
             `)}
           </StyleguideSection>
