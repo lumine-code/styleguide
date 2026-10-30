@@ -211,7 +211,11 @@ module.exports = class StyleguideView {
 
   render() {
     return (
-      <div className="styleguide pane-item native-key-bindings" tabIndex="-1">
+      <div
+        className="styleguide pane-item native-key-bindings"
+        tabIndex="-1"
+        attributes={{ "data-scrollbar-kind": "panel" }}
+      >
         <header className="styleguide-header">
           <div className="styleguide-intro">
             <h1>Styleguide</h1>
