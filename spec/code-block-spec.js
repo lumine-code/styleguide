@@ -37,8 +37,8 @@ describe("Styleguide code blocks", () => {
   it("wraps source to the available width without changing it or displaying invisibles", async () => {
     jasmine.useRealClock();
     lumine.config.set("editor.softWrap", false);
-    lumine.config.set("editor.softWrapAtPreferredLineLength", true);
-    lumine.config.set("editor.preferredLineLength", 20);
+    lumine.config.set("editor.softWrapMinColumn", 120);
+    lumine.config.set("editor.softWrapMaxColumn", 20);
     lumine.config.set("editor.showInvisibles", true);
     const code = `  <div>${"long example content ".repeat(16)}</div>\n`;
     const block = createBlock({ cssClass: "example-code", grammarScopeName: "text.plain", code });
