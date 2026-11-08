@@ -4,6 +4,7 @@ describe("Styleguide interactive examples", () => {
   let MenuExample;
   let TooltipExample;
   let ExampleSelectListView;
+  let DataTableExample;
   let examples;
 
   beforeEach(async () => {
@@ -14,6 +15,7 @@ describe("Styleguide interactive examples", () => {
     await lumine.packages.activatePackage("styleguide");
     ({ InputDialogExample, MenuExample, TooltipExample } = require("../lib/interactive-examples"));
     ExampleSelectListView = require("../lib/example-select-list-view");
+    DataTableExample = require("../lib/example-data-table");
     examples = [];
   });
 
@@ -38,6 +40,7 @@ describe("Styleguide interactive examples", () => {
       MenuExample,
       TooltipExample,
       ExampleSelectListView,
+      DataTableExample,
     ]) {
       const example = attach(Example);
       expect(document.activeElement).toBe(focusTarget);
@@ -47,6 +50,59 @@ describe("Styleguide interactive examples", () => {
     expect(examples[1].popup).toBeNull();
     expect(examples[3].selectList.getSelectedItem()).toBeNull();
     focusTarget.remove();
+  });
+
+  it("sorts data table numbers and text in both directions without replacing the focused header", () => {
+    const example = attach(DataTableExample);
+    const { cell, button } = example.headers.get("duration");
+    const names = () => [...example.table.tBodies[0].rows].map((row) => row.dataset.name);
+    button.focus();
+    button.click();
+    expect(names()).toEqual(["Test", "Package", "Compile"]);
+    expect(cell.getAttribute("aria-sort")).toBe("ascending");
+    expect(example.headers.get("name").cell.getAttribute("aria-sort")).toBe("none");
+    expect(document.activeElement).toBe(button);
+    button.click();
+    expect(names()).toEqual(["Compile", "Package", "Test"]);
+    expect(cell.getAttribute("aria-sort")).toBe("descending");
+    expect(document.activeElement).toBe(button);
+    const nameHeader = example.headers.get("name");
+    nameHeader.button.focus();
+    nameHeader.button.click();
+    expect(names()).toEqual(["Compile", "Package", "Test"]);
+    expect(nameHeader.cell.getAttribute("aria-sort")).toBe("ascending");
+    expect(cell.getAttribute("aria-sort")).toBe("none");
+    nameHeader.button.click();
+    expect(names()).toEqual(["Test", "Package", "Compile"]);
+    expect(nameHeader.cell.getAttribute("aria-sort")).toBe("descending");
+    expect(document.activeElement).toBe(nameHeader.button);
+    expect(button.matches("button.data-table-sort.native-key-bindings[type='button']")).toBe(true);
+    const staticHeader = example.table.querySelector("th:last-child");
+    expect(staticHeader.textContent).toBe("Status");
+    expect(staticHeader.hasAttribute("aria-sort")).toBe(false);
+    expect(staticHeader.querySelector("button")).toBeNull();
+  });
+
+  it("keeps the current data row independent of focus and destroys its code editors", async () => {
+    const example = attach(DataTableExample);
+    const current = example.table.querySelector(".current");
+    const other = example.table.querySelector('[data-name="Test"]');
+    other.focus();
+    expect(other.classList.contains("focused")).toBe(true);
+    expect(current.classList.contains("current")).toBe(true);
+    example.headers.get("name").button.focus();
+    expect(other.classList.contains("focused")).toBe(false);
+    const editors = [...example.element.querySelectorAll("lumine-text-editor")].map((element) =>
+      element.getModel(),
+    );
+    const firstDestroy = example.destroy();
+    expect(example.destroy()).toBe(firstDestroy);
+    await firstDestroy;
+    expect(editors.every((editor) => editor.isDestroyed())).toBe(true);
+    expect(example.element.isConnected).toBe(false);
+    const previousOrder = example.rows.slice();
+    example.sort("duration");
+    expect(example.rows).toEqual(previousOrder);
   });
 
   it("validates input and clears the validation message when the query changes", async () => {

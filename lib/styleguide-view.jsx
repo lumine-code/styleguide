@@ -6,6 +6,7 @@ const CodeBlock = require("./code-block");
 const HTMLExample = require("./html-example");
 const StyleguideSection = require("./styleguide-section");
 const ExampleSelectListView = require("./example-select-list-view");
+const DataTableExample = require("./example-data-table");
 const ICON_NAMES = require("./icon-names.json");
 const { InputDialogExample, MenuExample, TooltipExample } = require("./interactive-examples");
 
@@ -843,6 +844,47 @@ module.exports = class StyleguideView {
 
           <StyleguideSection
             onDidInitialize={this.didInitializeSection.bind(this)}
+            name="data-table"
+            title="Data Table"
+          >
+            <p>
+              Use <code>.data-table</code> for compact lists with columns. Core supplies typography,
+              spacing, horizontal separators and interaction states through{" "}
+              <code>--data-grid-*</code> and <code>--ui-*</code> variables. Packages own the
+              columns, data and comparators. Hover and row-state feedback is immediate, matching the
+              standard lists and buttons.
+            </p>
+            <p>
+              Sortable headers use a native <code>.data-table-sort.native-key-bindings</code> button
+              inside <code>th[scope="col"]</code>. Set <code>aria-sort</code> to <code>none</code>,{" "}
+              <code>ascending</code> or <code>descending</code>; core draws the arrow. Leave
+              unsortable headers as plain cells. Wrap the label in{" "}
+              <code>.data-table-sort-label</code>
+              to preserve room for the arrow. Click Name or Duration below to change the order.
+            </p>
+            <DataTableExample onDidInitialize={this.didInitializeExample.bind(this)} />
+            <p>
+              Rows use <code>.data-table-row</code>. <code>.current</code> marks the current row;
+              native row focus or <code>.focused</code> shows its keyboard outline while the table
+              has focus. Add <code>.data-table-container</code> only when an outer wrapper owns
+              focus. Set <code>--data-table-row-tint</code> for a status color. Use ordinary{" "}
+              <code>.btn</code> controls for row actions, or{" "}
+              <code>.btn-link.data-table-action.native-key-bindings</code> for an inline action.
+              Rows, sortable headers and action buttons use the default arrow cursor; navigation
+              links retain the pointer and disabled buttons retain their disabled cursor. A context
+              menu retains its source row's hover until it closes, independently of selection.
+            </p>
+            <p>
+              Group a sortable heading and its trailing actions in{" "}
+              <code>.data-table-header-controls</code>. A native{" "}
+              <code>.data-table-header-action.native-key-bindings</code> button uses the same
+              compact, square-edged style as Diagnostics, with theme colors for hover, focus and
+              disabled states.
+            </p>
+          </StyleguideSection>
+
+          <StyleguideSection
+            onDidInitialize={this.didInitializeSection.bind(this)}
             name="list-tree"
             title="List Tree"
           >
@@ -1303,15 +1345,21 @@ module.exports = class StyleguideView {
             `)}
 
             <p>
-              Centered background messages will center horizontally and vertically. Your container
-              for this element must have <code>position</code> set with <code>relative</code> or
-              <code>absolute</code>.
+              Put a panel's empty body in <code>.panel-empty-state</code>, below its toolbar or
+              table header. The shared layout centers and wraps the message, stacks multiple lines
+              vertically and lets input pass through the decorative text. Preserve distinct messages
+              for an empty list and a filter with no matches; loading and error states keep their
+              own feedback.
             </p>
 
             {this.renderExampleHTML(dedent`
-              <ul class='background-message centered'>
-                <li>No Results</li>
-              </ul>
+              <div class='panel-empty-state' style='min-height: 12em'>
+                <background-tips>
+                  <ul class='background-message centered'>
+                    <li>No results</li>
+                  </ul>
+                </background-tips>
+              </div>
             `)}
           </StyleguideSection>
 
