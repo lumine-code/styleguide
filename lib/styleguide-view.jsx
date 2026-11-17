@@ -1,5 +1,5 @@
 /** @jsx etch.dom */
-const { CompositeDisposable } = require("lumine");
+const { CompositeDisposable, Disposable } = require("lumine");
 const etch = require("@lumine-code/etch");
 const dedent = require("dedent");
 const CodeBlock = require("./code-block");
@@ -76,7 +76,12 @@ module.exports = class StyleguideView {
 
     // Fill in the resolved value of every theme variable next to its swatch,
     // and keep it current as the active theme changes or sections expand.
-    this.disposables = new CompositeDisposable();
+    this.disposables = new CompositeDisposable(lumine.scrollbars.bindNavigation(this.refs.content));
+    const focusContent = () => this.refs.content.focus({ preventScroll: true });
+    this.element.addEventListener("focus", focusContent);
+    this.disposables.add(
+      new Disposable(() => this.element.removeEventListener("focus", focusContent)),
+    );
     this.disposables.add(lumine.themes.onDidChangeVariables(() => this.scheduleResolvedValues()));
     this.scheduleResolvedValues();
   }
@@ -233,7 +238,7 @@ module.exports = class StyleguideView {
           </div>
         </header>
 
-        <main className="styleguide-sections">
+        <main className="styleguide-sections" ref="content" tabIndex="-1">
           <StyleguideSection
             onDidInitialize={this.didInitializeSection.bind(this)}
             name="variables"
