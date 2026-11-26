@@ -656,7 +656,17 @@ module.exports = class StyleguideView {
             `)}
 
             <h3>Icon buttons</h3>
-            <p>Add an icon before the button's label.</p>
+            <p>
+              Use <code>icon-button</code> with an accessible label when the icon is the entire
+              control.
+            </p>
+            {this.renderExampleHTML(dedent`
+              <div class='block'>
+                <button class='icon-button icon icon-gear inline-block-tight' type='button' aria-label='Settings'></button>
+                <button class='btn btn-primary icon-button icon icon-cloud-download inline-block-tight' type='button' aria-label='Install'></button>
+              </div>
+            `)}
+            <p>An icon can also accompany a visible label.</p>
             {this.renderExampleHTML(dedent`
               <div class='block'>
                 <button class='btn icon icon-gear inline-block-tight'>Settings</button>
